@@ -606,8 +606,8 @@
 
     // フィルターオプション更新
     function populateFilterOptions() {
-      // 証券会社（口座一覧に登録されているもののみ）
-      const brokers = Object.keys(accounts).sort();
+      // 証券会社（取引データから取得）
+      const brokers = [...new Set(entries.map(e => e.brokerAccount))].filter(b => b).sort();
       const brokerSelect = document.getElementById('filterBroker');
       const currentBroker = brokerSelect.value;
       brokerSelect.innerHTML = '<option value="">すべて</option>';
@@ -863,7 +863,7 @@
 
     // 取引追加モーダル
     function showAddTradeModal() {
-      // プルダウン更新
+      // プルダウン更新（重要！）
       populateBrokerOptions();
       populateCategoryOptions();
       
@@ -898,7 +898,7 @@
 
     // カテゴリプルダウンを更新
     function populateCategoryOptions() {
-      // 固定のカテゴリリスト
+      // 固定のカテゴリリスト（CFD削除）
       const fixedCategories = [
         '米国株',
         '米国指数',
