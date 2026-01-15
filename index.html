@@ -1284,16 +1284,16 @@
         
         const latest = backups[0];
         const data = JSON.parse(latest.backup_data);
-        const date = new Date(latest.created_at).toLocaleString('ja-JP');
         
-        if (!confirm(`最新データを取得しますか？\n\n${latest.backup_name}\n${date}\n\n取引: ${data.entries?.length || 0}件\n口座: ${Object.keys(data.accounts || {}).length}件\n\n現在のデータは上書きされます`)) return;
-        
+        // 確認なしで自動同期
         entries = data.entries || [];
         accounts = data.accounts || {};
         localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
         localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
         init();
-        alert('✅ 同期完了！\n\n最新データを取得しました。');
+        
+        const date = new Date(latest.created_at).toLocaleString('ja-JP');
+        alert(`✅ 同期完了！\n\n${latest.backup_name}\n${date}\n\n取引: ${entries.length}件 | 口座: ${Object.keys(accounts).length}件`);
       } catch (err) {
         alert(`❌ 同期失敗: ${err.message}`);
       }
