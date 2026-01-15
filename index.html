@@ -30,7 +30,7 @@
         📊 CSV取込
         <input type="file" accept=".csv" onchange="handleCSVImport(event)" class="hidden">
       </label>
-      <button onclick="showBackupModal()" class="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition shadow-lg font-bold">💾 バックアップ</button>
+      <button onclick="syncData()" class="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl hover:from-blue-600 hover:to-cyan-600 transition shadow-lg font-bold">🔄 同期</button>
       <button onclick="showRestoreModal()" class="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition shadow-lg font-bold">📥 復元</button>
       <button onclick="deleteAllTrades()" class="px-4 py-2 bg-gradient-to-r from-red-700 to-red-800 text-white rounded-xl hover:from-red-800 hover:to-red-900 transition shadow-lg font-bold">🗑️ 取引全削除</button>
     </div>
@@ -247,30 +247,6 @@
       </div>
     </div>
 
-    <!-- バックアップ選択モーダル -->
-    <div id="backupModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onclick="closeBackupModal()">
-      <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full" onclick="event.stopPropagation()">
-        <div class="bg-gradient-to-r from-blue-500 to-cyan-500 p-4 rounded-t-2xl">
-          <div class="flex justify-between items-center">
-            <h2 class="text-xl font-bold text-white">💾 バックアップ方法を選択</h2>
-            <button onclick="closeBackupModal()" class="text-white hover:text-gray-200 text-3xl font-bold leading-none">✕</button>
-          </div>
-        </div>
-        <div class="p-6">
-          <div class="space-y-3">
-            <button onclick="handleTableAPIBackup()" class="w-full p-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl hover:from-blue-600 hover:to-cyan-600 transition shadow-lg text-left">
-              <div class="font-bold text-lg mb-1">☁️ Table API保存</div>
-              <div class="text-sm opacity-90">サーバーに保存（端末間で共有可能）</div>
-            </button>
-            <button onclick="handleLocalBackup()" class="w-full p-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:from-purple-600 hover:to-pink-600 transition shadow-lg text-left">
-              <div class="font-bold text-lg mb-1">💾 ローカル保存</div>
-              <div class="text-sm opacity-90">ファイルとしてダウンロード</div>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- 復元選択モーダル -->
     <div id="restoreModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onclick="closeRestoreModal()">
       <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full" onclick="event.stopPropagation()">
@@ -283,12 +259,12 @@
         <div class="p-6">
           <div class="space-y-3">
             <button onclick="showBackupListForRestore()" class="w-full p-4 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-xl hover:from-green-600 hover:to-teal-600 transition shadow-lg text-left">
-              <div class="font-bold text-lg mb-1">☁️ Table APIから復元</div>
-              <div class="text-sm opacity-90">サーバーに保存された履歴から選択</div>
+              <div class="font-bold text-lg mb-1">☁️ サーバーから復元</div>
+              <div class="text-sm opacity-90">自動バックアップ履歴から選択</div>
             </button>
             <label class="w-full block">
               <div class="w-full p-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:from-purple-600 hover:to-pink-600 transition shadow-lg cursor-pointer text-left">
-                <div class="font-bold text-lg mb-1">💾 ローカルファイルから復元</div>
+                <div class="font-bold text-lg mb-1">💾 ファイルから復元</div>
                 <div class="text-sm opacity-90">JSONファイルをアップロード</div>
               </div>
               <input type="file" accept=".json" onchange="handleLocalRestore(event)" class="hidden">
@@ -493,10 +469,42 @@
       }
     }
 
-    // データ保存
-    function saveData() {
+    // データ保存（自動バックアップ付き）
+    async function saveData() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
       localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+      
+      // 自動バックアップ（非同期、エラーは無視）
+      autoBackup().catch(err => console.warn('自動バックアップ失敗:', err));
+    }
+    
+    // 自動バックアップ
+    async function autoBackup() {
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      const timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
+      const backupName = `auto-${dateStr}-${timeStr}`;
+      const backupData = {
+        version: '5.1-tableapi',
+        exportDate: new Date().toISOString(),
+        entries,
+        accounts
+      };
+      
+      const response = await fetch('tables/backups', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          backup_name: backupName,
+          backup_data: JSON.stringify(backupData),
+          backup_type: 'auto',
+          entry_count: entries.length,
+          account_count: Object.keys(accounts).length
+        })
+      });
+      
+      if (!response.ok) throw new Error('自動バックアップ失敗');
+      console.log('✅ 自動バックアップ完了:', backupName);
     }
 
     // 証券会社別の損益計算（タイムスタンプベース）
@@ -1260,76 +1268,34 @@
       return Date.now().toString(36) + Math.random().toString(36).substr(2);
     }
 
-    // バックアップモーダルを表示
-    function showBackupModal() {
-      document.getElementById('backupModal').classList.remove('hidden');
-    }
-    
-    function closeBackupModal() {
-      document.getElementById('backupModal').classList.add('hidden');
-    }
-    
-    // Table APIバックアップ
-    async function handleTableAPIBackup() {
-      closeBackupModal();
+    // 同期（最新データを取得）
+    async function syncData() {
       try {
-        const now = new Date();
-        const dateStr = now.toISOString().split('T')[0];
-        const timeStr = now.toTimeString().split(' ')[0].substring(0, 5); // HH:MM
-        const backupName = `backup-${dateStr}-${timeStr}`;
-        const backupData = {
-          version: '5.1-tableapi',
-          exportDate: new Date().toISOString(),
-          entries,
-          accounts
-        };
+        const response = await fetch('tables/backups?limit=1&sort=-created_at');
+        if (!response.ok) throw new Error('データ取得失敗');
         
-        const response = await fetch('tables/backups', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({
-            backup_name: backupName,
-            backup_data: JSON.stringify(backupData),
-            backup_type: 'manual',
-            entry_count: entries.length,
-            account_count: Object.keys(accounts).length
-          })
-        });
+        const result = await response.json();
+        const backups = result.data || [];
         
-        if (!response.ok) throw new Error('バックアップ保存失敗');
+        if (backups.length === 0) {
+          alert('❌ 同期するデータがありません\n\n他の端末でデータを入力してください。');
+          return;
+        }
         
-        alert('✅ 保存できました！\n\nTable APIにバックアップを保存しました。');
+        const latest = backups[0];
+        const data = JSON.parse(latest.backup_data);
+        const date = new Date(latest.created_at).toLocaleString('ja-JP');
+        
+        if (!confirm(`最新データを取得しますか？\n\n${latest.backup_name}\n${date}\n\n取引: ${data.entries?.length || 0}件\n口座: ${Object.keys(data.accounts || {}).length}件\n\n現在のデータは上書きされます`)) return;
+        
+        entries = data.entries || [];
+        accounts = data.accounts || {};
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+        localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+        init();
+        alert('✅ 同期完了！\n\n最新データを取得しました。');
       } catch (err) {
-        alert(`❌ バックアップ失敗: ${err.message}`);
-      }
-    }
-    
-    // ローカルバックアップ
-    function handleLocalBackup() {
-      closeBackupModal();
-      try {
-        const now = new Date();
-        const dateStr = now.toISOString().split('T')[0];
-        const timeStr = now.toTimeString().split(' ')[0].substring(0, 5); // HH:MM
-        const backupName = `backup-${dateStr}-${timeStr}`;
-        const backupData = {
-          version: '5.1-tableapi',
-          exportDate: new Date().toISOString(),
-          entries,
-          accounts
-        };
-        
-        const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${backupName}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        
-        alert('✅ 保存できました！\n\nファイルがダウンロードされました。');
-      } catch (err) {
-        alert(`❌ バックアップ失敗: ${err.message}`);
+        alert(`❌ 同期失敗: ${err.message}`);
       }
     }
     
@@ -1370,7 +1336,7 @@
     async function showBackupListForRestore() {
       closeRestoreModal();
       try {
-        const response = await fetch('tables/backups?limit=5&sort=-created_at');
+        const response = await fetch('tables/backups?limit=10&sort=-created_at');
         if (!response.ok) throw new Error('バックアップ一覧取得失敗');
         
         const result = await response.json();
@@ -1385,9 +1351,13 @@
         const listContent = document.getElementById('backupListContent');
         listContent.innerHTML = backups.map(backup => {
           const date = new Date(backup.created_at).toLocaleString('ja-JP');
+          const typeLabel = backup.backup_type === 'auto' ? '🤖 自動' : '👤 手動';
           return `
             <div class="p-4 bg-gradient-to-r from-green-50 to-teal-50 border-2 border-green-200 rounded-xl hover:shadow-lg transition cursor-pointer" onclick='confirmRestore(${JSON.stringify(backup).replace(/'/g, "&apos;")})' >
-              <div class="font-bold text-gray-900">${backup.backup_name}</div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs px-2 py-1 bg-green-200 text-green-800 rounded-full">${typeLabel}</span>
+                <div class="font-bold text-gray-900">${backup.backup_name}</div>
+              </div>
               <div class="text-sm text-gray-600 mt-1">
                 📅 ${date}<br>
                 📊 取引: ${backup.entry_count}件 | 口座: ${backup.account_count}件
@@ -1416,7 +1386,8 @@
         
         entries = data.entries || [];
         accounts = data.accounts || {};
-        saveData();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+        localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
         closeBackupListModal();
         init();
         alert('✅ 復元完了！');
@@ -1425,7 +1396,7 @@
       }
     }
     
-    // バックアップから復元
+    // バックアップから復元（旧関数、削除予定）
     async function restoreFromBackup(backup) {
       try {
         const data = JSON.parse(backup.backup_data);
