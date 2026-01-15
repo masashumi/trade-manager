@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎯 投資管理システム統合版</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 min-h-screen">
+  <div class="container mx-auto p-4 sm:p-8 max-w-7xl">
+    <!-- リカバリー/セーフモード用のアラートバー -->
+    <div id="alertBar" class="hidden mb-4"></div>
+    <!-- ヘッダー -->
+    <div class="mb-4">
+      <h1 class="text-4xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent">🎯 投資管理システム</h1>
+      <p class="text-gray-600 mt-2">口座管理・取引記録・統計を一元管理</p>
+    </div>
+
+    <!-- 戦略司令塔ボタン（最上部） -->
+    <div class="mb-4">
+      <a href="analysis.html" class="inline-block px-8 py-4 bg-gradient-to-r from-red-500 via-orange-500 to-pink-600 text-white rounded-2xl hover:from-red-600 hover:via-orange-600 hover:to-pink-700 transition shadow-2xl font-bold text-xl">🔥 戦略司令塔</a>
+    </div>
+
+    <!-- 管理ボタン -->
+    <div class="flex gap-2 mb-8 flex-wrap">
+      <button onclick="showAddTradeModal()" class="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition shadow-lg font-bold">➕ 取引追加</button>
+      <button onclick="showBulkEditModal()" class="px-4 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white rounded-xl hover:from-yellow-600 hover:to-yellow-700 transition shadow-lg font-bold">🔄 一括編集</button>
+      <label class="px-4 py-2 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white rounded-xl hover:from-cyan-600 hover:to-cyan-700 transition shadow-lg font-bold cursor-pointer">
+        📊 CSV取込
+        <input type="file" accept=".csv" onchange="handleCSVImport(event)" class="hidden">
+      </label>
+      <button onclick="handleJSONBackup()" class="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition shadow-lg font-bold">💾 バックアップ</button>
+      <button onclick="showBackupList()" class="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition shadow-lg font-bold">📥 復元（Table API）</button>
+      <label class="px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl hover:from-purple-600 hover:to-purple-700 transition shadow-lg font-bold cursor-pointer">
+        📥 復元（ファイル）
+        <input type="file" accept=".json" onchange="handleJSONRestore(event)" class="hidden">
+      </label>
+      <button onclick="deleteAllTrades()" class="px-4 py-2 bg-gradient-to-r from-red-700 to-red-800 text-white rounded-xl hover:from-red-800 hover:to-red-900 transition shadow-lg font-bold">🗑️ 取引全削除</button>
+    </div>
+
+    <!-- サマリーカード -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <div class="bg-gradient-to-br from-purple-500 to-purple-600 p-6 rounded-2xl shadow-xl text-white">
+        <p class="text-sm opacity-90 mb-1">💎 総資産</p>
+        <p id="totalAssets" class="text-3xl font-bold">¥0</p>
+        <p id="totalAssetsUSDT" class="text-3xl font-bold mt-1"></p>
+      </div>
+      <div class="bg-gradient-to-br from-green-500 to-green-600 p-6 rounded-2xl shadow-xl text-white">
+        <p class="text-sm opacity-90 mb-1">推定投資額</p>
+        <p id="totalInvestment" class="text-3xl font-bold">¥0</p>
+        <p id="totalInvestmentUSDT" class="text-3xl font-bold mt-1"></p>
+      </div>
+      <div class="bg-gradient-to-br from-orange-500 to-orange-600 p-6 rounded-2xl shadow-xl text-white">
+        <p class="text-sm opacity-90 mb-1">総損益</p>
+        <p id="totalPnL" class="text-3xl font-bold">¥0</p>
+        <p id="totalPnLUSDT" class="text-3xl font-bold mt-1"></p>
+      </div>
+    </div>
+
+    <!-- 証券口座一覧 -->
+    <div class="bg-white rounded-2xl shadow-xl border-2 border-blue-200 p-6 mb-8">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-2xl font-bold text-gray-900">🏦 証券口座一覧</h2>
+        <button onclick="showAddAccountModal()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-bold">➕ 口座追加</button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-gradient-to-r from-blue-100 to-purple-100">
+            <tr>
+              <th class="px-4 py-3 text-left">証券会社</th>
+              <th class="px-4 py-3 text-right">現在残高(JPY)</th>
+              <th class="px-4 py-3 text-right">現在残高(USDT)</th>
+              <th class="px-4 py-3 text-right">総損益(JPY)</th>
+              <th class="px-4 py-3 text-right">総損益(USDT)</th>
+              <th class="px-4 py-3 text-center">トレード件数</th>
+              <th class="px-4 py-3 text-center">操作</th>
+            </tr>
+          </thead>
+          <tbody id="accountsTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 取引履歴 -->
+    <div class="bg-white rounded-2xl shadow-xl border-2 border-purple-200 p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-2xl font-bold text-gray-900">📜 取引履歴 (<span id="totalEntries">0</span>件 / 表示中: <span id="filteredEntries">0</span>件)</h2>
+      </div>
+      
+      <!-- フィルター -->
+      <div class="bg-purple-50 border-2 border-purple-200 rounded-xl p-4 mb-4">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="font-bold text-purple-900">🔍 絞り込み検索</h3>
+          <button onclick="resetFilters()" class="px-3 py-1 text-sm bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition font-bold">リセット</button>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">証券会社</label>
+            <select id="filterBroker" onchange="applyFilters()" class="w-full px-2 py-1.5 text-sm border-2 border-gray-200 rounded-lg">
+              <option value="">すべて</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">銘柄</label>
+            <select id="filterSymbol" onchange="applyFilters()" class="w-full px-2 py-1.5 text-sm border-2 border-gray-200 rounded-lg">
+              <option value="">すべて</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">カテゴリ</label>
+            <select id="filterCategory" onchange="applyFilters()" class="w-full px-2 py-1.5 text-sm border-2 border-gray-200 rounded-lg">
+              <option value="">すべて</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">売買形態</label>
+            <select id="filterTradeType" onchange="applyFilters()" class="w-full px-2 py-1.5 text-sm border-2 border-gray-200 rounded-lg">
+              <option value="">すべて</option>
+              <option value="ロング">ロング</option>
+              <option value="ショート">ショート</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      
+      <!-- ページネーション -->
+      <div id="pagination" class="flex justify-center gap-2 mb-4"></div>
+
+      <!-- テーブル -->
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-gradient-to-r from-purple-100 to-pink-100">
+            <tr>
+              <th class="px-4 py-3 text-left">日付</th>
+              <th class="px-4 py-3 text-left">銘柄</th>
+              <th class="px-4 py-3 text-left">カテゴリ</th>
+              <th class="px-4 py-3 text-left">売買形態</th>
+              <th class="px-4 py-3 text-left">証券会社</th>
+              <th class="px-4 py-3 text-right">損益(JPY)</th>
+              <th class="px-4 py-3 text-right">損益(USDT)</th>
+              <th class="px-4 py-3 text-center">操作</th>
+            </tr>
+          </thead>
+          <tbody id="entriesTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 口座追加/編集モーダル -->
+    <div id="accountModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onclick="closeAccountModal()">
+      <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full" onclick="event.stopPropagation()">
+        <div class="bg-gradient-to-r from-blue-500 to-purple-500 p-6 rounded-t-2xl">
+          <div class="flex justify-between items-center">
+            <h2 class="text-2xl font-bold text-white" id="modalTitle">口座を追加</h2>
+            <button onclick="closeAccountModal()" class="text-white hover:text-gray-200 text-2xl">✕</button>
+          </div>
+        </div>
+        <div class="p-6">
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">証券会社</label>
+              <input type="text" id="accountBroker" class="w-full px-3 py-2 border-2 border-gray-200 rounded-xl" placeholder="例: サクソバンク">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">現在残高（円）</label>
+                <input type="number" id="accountBalance" class="w-full px-3 py-2 border-2 border-gray-200 rounded-xl" placeholder="例: 1000000">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">現在残高（USDT）</label>
+                <input type="number" id="accountBalanceUSDT" class="w-full px-3 py-2 border-2 border-gray-200 rounded-xl" placeholder="例: 500">
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">基準日</label>
+              <input type="date" id="accountBaselineDate" class="w-full px-3 py-2 border-2 border-gray-200 rounded-xl">
+              <p class="text-xs text-gray-500 mt-1">💡 残高を修正した時刻より後に入力された取引が自動で加算されます</p>
+            </div>
+          </div>
+          <div class="flex gap-3 mt-6">
+            <button onclick="saveAccount()" class="flex-1 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-bold">💾 保存</button>
+            <button onclick="closeAccountModal()" class="px-6 py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition font-bold">キャンセル</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 取引追加モーダル -->
+    <div id="tradeModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto" onclick="closeTradeModal()">
+      <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full my-8" onclick="event.stopPropagation()">
+        <div class="bg-gradient-to-r from-green-500 to-teal-500 p-4 rounded-t-2xl">
+          <div class="flex justify-between items-center">
+            <h2 class="text-xl font-bold text-white">取引を追加</h2>
+            <button onclick="closeTradeModal()" class="text-white hover:text-gray-200 text-3xl font-bold leading-none">✕</button>
+          </div>
+        </div>
+        <div class="p-4 max-h-[70vh] overflow-y-auto">
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">日付</label>
+              <input type="date" id="tradeDate" class="w-full px-2 py-1.5 text-sm border-2 border-gray-200 rounded-lg">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">証券会社</label>
+              <select id="tradeBroker" onchange="updateSymbolOptions()" class="w-full px-2 py-1.5 text-sm border-2 border-gray-200 rounded-lg">
+                <option value="">-- 証券会社を選択 --</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">銘柄コード</label>
+              <select id="tradeSymbol" class="w-full px-2 py-1.5 text-sm border-2 border-gray-200 rounded-lg">
+                <option value="">-- 証券会社を先に選択 --</option>
+              </select>
+              <input type="text" id="tradeSymbolCustom" class="w-full px-2 py-1.5 text-sm border-2 border-gray-200 rounded-lg mt-1" placeholder="新規銘柄を手入力">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">カテゴリ</label>
+              <select id="tradeCategory" class="w-full px-2 py-1.5 text-sm border-2 border-gray-200 rounded-lg">
+                <option value="">-- カテゴリを選択 --</option>
+              </select>
+              <input type="text" id="tradeCategoryCustom" class="w-full px-2 py-1.5 text-sm border-2 border-gray-200 rounded-lg mt-1" placeholder="新規カテゴリを手入力">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">売買形態</label>
+              <select id="tradeType" class="w-full px-2 py-1.5 text-sm border-2 border-gray-200 rounded-lg">
+                <option value="ロング">ロング</option>
+                <option value="ショート">ショート</option>
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">損益（円）</label>
+                <input type="number" id="tradePnL" class="w-full px-2 py-1.5 text-sm border-2 border-gray-200 rounded-lg" placeholder="例: 1500">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">損益（USDT）</label>
+                <input type="number" id="tradePnLUSDT" class="w-full px-2 py-1.5 text-sm border-2 border-gray-200 rounded-lg" placeholder="例: 10">
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">メモ（任意）</label>
+              <textarea id="tradeNote" class="w-full px-2 py-1.5 text-sm border-2 border-gray-200 rounded-lg" rows="2" placeholder="任意のメモ"></textarea>
+            </div>
+          </div>
+          <div class="flex gap-2 mt-4">
+            <button onclick="saveTrade()" class="flex-1 px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-bold">💾 保存</button>
+            <button onclick="closeTradeModal()" class="px-4 py-2 text-sm bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition font-bold">キャンセル</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 一括編集モーダル -->
+    <div id="bulkEditModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto" onclick="closeBulkEditModal()">
+      <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full my-8" onclick="event.stopPropagation()">
+        <div class="bg-gradient-to-r from-yellow-500 to-orange-500 p-4 rounded-t-2xl">
+          <div class="flex justify-between items-center">
+            <h2 class="text-xl font-bold text-white">銘柄・カテゴリ一括編集</h2>
+            <button onclick="closeBulkEditModal()" class="text-white hover:text-gray-200 text-3xl font-bold leading-none">✕</button>
+          </div>
+        </div>
+        <div class="p-4">
+          <div class="space-y-3">
+            <div class="bg-blue-50 border-2 border-blue-200 rounded-lg p-3">
+              <h3 class="font-bold text-sm text-blue-900 mb-2">💡 使い方</h3>
+              <p class="text-xs text-blue-800">銘柄名の変更と同時にカテゴリも変更できます。<br>カテゴリ欄が空白の場合は変更しません。</p>
+            </div>
+            
+            <div class="bg-gray-100 p-3 rounded-lg">
+              <h3 class="font-bold text-sm text-gray-900 mb-2">🔍 検索条件</h3>
+              <div class="space-y-2">
+                <div>
+                  <label class="block text-xs font-medium text-gray-700 mb-1">証券会社</label>
+                  <select id="bulkEditBroker" onchange="updateBulkEditSymbols()" class="w-full px-2 py-1.5 text-sm border-2 border-gray-200 rounded-lg">
+                    <option value="">-- 証券会社を選択 --</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-700 mb-1">変更前の銘柄コード</label>
+                  <select id="bulkEditFrom" class="w-full px-2 py-1.5 text-sm border-2 border-gray-200 rounded-lg">
+                    <option value="">-- 証券会社を先に選択 --</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            
+            <div class="bg-green-50 p-3 rounded-lg">
+              <h3 class="font-bold text-sm text-green-900 mb-2">✏️ 変更内容</h3>
+              <div class="space-y-2">
+                <div>
+                  <label class="block text-xs font-medium text-gray-700 mb-1">変更後の銘柄コード</label>
+                  <input type="text" id="bulkEditSymbol" class="w-full px-2 py-1.5 text-sm border-2 border-gray-200 rounded-lg" placeholder="例: AAPL">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-700 mb-1">カテゴリ（空白なら変更なし）</label>
+                  <input type="text" id="bulkEditCategory" list="categoryList" class="w-full px-2 py-1.5 text-sm border-2 border-gray-200 rounded-lg" placeholder="例: 米国株">
+                  <datalist id="categoryList">
+                    <option value="米国株">
+                    <option value="米国指数">
+                    <option value="日本株">
+                    <option value="日本指数">
+                    <option value="FX">
+                    <option value="コモディティ">
+                    <option value="債券">
+                    <option value="投資信託">
+                    <option value="オーバーナイト金利">
+                    <option value="その他手数料">
+                  </datalist>
+                </div>
+              </div>
+            </div>
+            
+            <div id="bulkEditPreview" class="hidden bg-yellow-50 border-2 border-yellow-200 rounded-lg p-3">
+              <p class="text-xs font-bold text-yellow-900 mb-1">プレビュー</p>
+              <p class="text-xs text-yellow-800" id="bulkEditPreviewText"></p>
+            </div>
+          </div>
+          
+          <div class="flex gap-2 mt-4">
+            <button onclick="previewBulkEdit()" class="flex-1 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-bold">🔍 プレビュー</button>
+            <button onclick="executeBulkEdit()" class="flex-1 px-4 py-2 text-sm bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition font-bold">✅ 実行</button>
+            <button onclick="closeBulkEditModal()" class="px-4 py-2 text-sm bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition font-bold">閉じる</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script>
+    // グローバル変数
+    const STORAGE_KEY = 'my-finance:pnl_entries:v3';
+    const ACCOUNTS_KEY = 'my-finance:accounts:v5';
+    const PAGE_SIZE = 10;
+    
+    let entries = [];
+    let accounts = {};
+    let currentPage = 1;
+    let editingBroker = null;
+    let filteredEntries = []; // フィルター済みエントリ
+    // セーフモード（?safe=1 で有効）
+    let safeMode = new URLSearchParams(location.search).get('safe') === '1';
+    // ローカルデータ破損検知用フラグ
+    window.recoveryError = false;
+
+    // 初期化
+    function init() {
+      loadData();
+      // 破損時はリカバリーバーを表示
+      if (window.recoveryError) {
+        showRecoveryBar();
+      } else {
+        hideRecoveryBar();
+      }
+      populateFilterOptions(); // フィルターオプション更新
+      renderAccountsTable();
+      renderEntriesTable();
+      renderSummary();
+    }
+
+    // データ読み込み
+    function loadData() {
+      // トレードデータ
+      const data = localStorage.getItem(STORAGE_KEY);
+      if (data) {
+        let parsed;
+        try {
+          parsed = JSON.parse(data);
+        } catch (e) {
+          console.error('❌ ローカルデータ(entries)の解析に失敗しました。バックアップからの復元を推奨します。', e);
+          window.recoveryError = true;
+          entries = [];
+          return; // 以降の処理はスキップ
+        }
+        entries = Array.isArray(parsed) ? parsed : (parsed.entries || []);
+        entries.sort((a, b) => b.date.localeCompare(a.date));
+      }
+
+      // 口座データ（v5形式）
+      let accountsData = localStorage.getItem(ACCOUNTS_KEY);
+      
+      // ★★★ 旧版（accounts.html）からの移行 ★★★
+      if (!accountsData) {
+        const oldAccountsData = localStorage.getItem('my-finance:accounts-data:v1');
+        if (oldAccountsData) {
+          try {
+            const old = JSON.parse(oldAccountsData);
+            console.log('🔄 旧版の口座データを検出、v5形式に変換します...');
+            
+            // 旧版のaccountsオブジェクトをv5形式に変換
+            const oldAccounts = old.accounts || {};
+            accounts = {};
+            
+            Object.keys(oldAccounts).forEach(broker => {
+              const oldAccount = oldAccounts[broker];
+              
+              // 残高を計算
+              let balance = 0;
+              if (oldAccount.inputMode === 'balance') {
+                balance = oldAccount.baselineBalance || 0;
+              } else if (oldAccount.baselineInvestment !== undefined) {
+                // 投資額モードの場合、基準日までの損益を加算
+                const { totalPnL } = calculateBrokerPnL(broker, null);
+                balance = (oldAccount.baselineInvestment || 0) + totalPnL;
+              }
+              
+              accounts[broker] = {
+                balance: balance,
+                baselineDate: oldAccount.baselineDate || '2024-01-01'
+              };
+              
+              console.log(`✅ ${broker}: 残高=${balance}, 基準日=${accounts[broker].baselineDate}`);
+            });
+            
+            // 変換後のデータを保存
+            localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+            console.log('✅ v5形式への変換完了！');
+          } catch (err) {
+            console.error('旧版データ変換エラー:', err);
+          }
+        }
+      } else {
+        try {
+          accounts = JSON.parse(accountsData);
+        } catch (e) {
+          console.error('❌ ローカルデータ(accounts)の解析に失敗しました。バックアップからの復元を推奨します。', e);
+          window.recoveryError = true;
+          accounts = {};
+        }
+      }
+    }
+
+    // データ保存
+    function saveData() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+      localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+    }
+
+    // 証券会社別の損益計算（タイムスタンプベース）
+    function calculateBrokerPnL(broker, afterDate = null) {
+      let filteredEntries = entries.filter(e => e.brokerAccount === broker);
+      
+      if (afterDate) {
+        // 口座の基準時刻を取得
+        const account = accounts[broker];
+        const baselineTimestamp = account?.baselineTimestamp;
+        
+        if (baselineTimestamp) {
+          // タイムスタンプで比較：基準時刻より後に入力された取引のみ
+          filteredEntries = filteredEntries.filter(e => {
+            const entryTimestamp = e.inputTimestamp || new Date(e.date).getTime(); // 後方互換性
+            return entryTimestamp > baselineTimestamp;
+          });
+        } else {
+          // baselineTimestamp がない場合（旧データ）は日付で比較
+          filteredEntries = filteredEntries.filter(e => e.date > afterDate);
+        }
+      }
+
+      return {
+        totalPnL: filteredEntries.reduce((sum, e) => sum + (Number(e.pnlJPY) || 0), 0),
+        totalPnLUSDT: filteredEntries.reduce((sum, e) => sum + (Number(e.pnlUSDT) || 0), 0),
+        count: filteredEntries.length
+      };
+    }
+
+    // 口座テーブルレンダリング
+    function renderAccountsTable() {
+      const brokers = Object.keys(accounts);
+      
+      if (brokers.length === 0) {
+        document.getElementById('accountsTable').innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-500">口座を追加してください</td></tr>';
+        return;
+      }
+
+      const rows = brokers.map(broker => {
+        const account = accounts[broker];
+        const { totalPnL: afterPnL, totalPnLUSDT: afterPnLUSDT } = calculateBrokerPnL(broker, account.baselineDate);
+        const { totalPnL: allPnL, totalPnLUSDT: allPnLUSDT, count } = calculateBrokerPnL(broker, null);
+        
+        // 現在残高（JPY + USDT）
+        const currentBalance = (account.balance || 0) + afterPnL;
+        const currentBalanceUSDT = (account.balanceUSDT || 0) + afterPnLUSDT;
+        
+        return `
+          <tr class="border-b hover:bg-gray-50">
+            <td class="px-4 py-3 font-medium">${broker}</td>
+            <td class="px-4 py-3 text-right font-bold text-blue-600">${fmtJPY2(currentBalance)}</td>
+            <td class="px-4 py-3 text-right font-bold text-cyan-600">${typeof currentBalanceUSDT === 'number' ? fmtUSDT(currentBalanceUSDT) : '-'}</td>
+            <td class="px-4 py-3 text-right ${allPnL >= 0 ? 'text-green-600' : 'text-red-600'} font-bold">${fmtJPY(allPnL)}</td>
+            <td class="px-4 py-3 text-right ${allPnLUSDT >= 0 ? 'text-green-600' : 'text-red-600'} font-bold">${typeof allPnLUSDT === 'number' ? fmtUSDT(allPnLUSDT) : '-'}</td>
+            <td class="px-4 py-3 text-center">${count}件</td>
+            <td class="px-4 py-3 text-center">
+              <button onclick="editAccount('${broker}')" class="text-blue-600 hover:text-blue-800">✏️</button>
+              <button onclick="deleteAccount('${broker}')" class="text-red-600 hover:text-red-800 ml-2">🗑️</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      document.getElementById('accountsTable').innerHTML = rows;
+    }
+
+    // サマリーレンダリング
+    function renderSummary() {
+      const brokers = Object.keys(accounts);
+      let totalAccountsBalance = 0;
+      let totalAccountsBalanceUSDT = 0;
+
+      // 口座に紐づく現在残高合計（基準日以降の損益を加算）
+      brokers.forEach(broker => {
+        const account = accounts[broker];
+        const { totalPnL: afterPnL, totalPnLUSDT: afterPnLUSDT } = calculateBrokerPnL(broker, account.baselineDate);
+        
+        totalAccountsBalance += (account.balance || 0) + afterPnL;
+        totalAccountsBalanceUSDT += (account.balanceUSDT || 0) + afterPnLUSDT;
+      });
+
+      // 全取引ベースの総損益（口座登録の有無に関わらず集計）- 精密合計（JPYは千分位、USDTは百分位）
+      const totalPnL = preciseSum(entries.map(e => Number(e.pnlJPY) || 0), 1000);
+      const totalPnLUSDT = preciseSum(entries.map(e => Number(e.pnlUSDT) || 0), 100);
+
+      const totalAssets = totalAccountsBalance;
+      const totalInvestment = totalAccountsBalance - totalPnL;
+      const totalAssetsUSDT = totalAccountsBalanceUSDT;
+      const totalInvestmentUSDT = totalAccountsBalanceUSDT - totalPnLUSDT;
+
+      document.getElementById('totalAssets').textContent = fmtJPY2(totalAssets);
+      document.getElementById('totalAssetsUSDT').textContent = typeof totalAssetsUSDT === 'number' ? `(${fmtUSDT(totalAssetsUSDT)})` : '';
+      document.getElementById('totalInvestment').textContent = fmtJPY2(totalInvestment);
+      document.getElementById('totalInvestmentUSDT').textContent = typeof totalInvestmentUSDT === 'number' ? `(${fmtUSDT(totalInvestmentUSDT)})` : '';
+      document.getElementById('totalPnL').textContent = fmtJPY(totalPnL);
+      document.getElementById('totalPnLUSDT').textContent = typeof totalPnLUSDT === 'number' ? `(${fmtUSDT(totalPnLUSDT)})` : '';
+    }
+
+    // フィルターオプション更新
+    function populateFilterOptions() {
+      // 証券会社（口座一覧に登録されているもののみ）
+      const brokers = Object.keys(accounts).sort();
+      const brokerSelect = document.getElementById('filterBroker');
+      const currentBroker = brokerSelect.value;
+      brokerSelect.innerHTML = '<option value="">すべて</option>';
+      brokers.forEach(broker => {
+        const option = document.createElement('option');
+        option.value = broker;
+        option.textContent = broker;
+        brokerSelect.appendChild(option);
+      });
+      brokerSelect.value = currentBroker;
+
+      // 銘柄
+      const symbols = [...new Set(entries.map(e => e.symbolCode))].filter(s => s).sort();
+      const symbolSelect = document.getElementById('filterSymbol');
+      const currentSymbol = symbolSelect.value;
+      symbolSelect.innerHTML = '<option value="">すべて</option>';
+      symbols.forEach(symbol => {
+        const option = document.createElement('option');
+        option.value = symbol;
+        option.textContent = symbol;
+        symbolSelect.appendChild(option);
+      });
+      symbolSelect.value = currentSymbol;
+
+      // カテゴリ
+      const categories = [...new Set(entries.map(e => e.category))].filter(c => c).sort();
+      const categorySelect = document.getElementById('filterCategory');
+      const currentCategory = categorySelect.value;
+      categorySelect.innerHTML = '<option value="">すべて</option>';
+      categories.forEach(category => {
+        const option = document.createElement('option');
+        option.value = category;
+        option.textContent = category;
+        categorySelect.appendChild(option);
+      });
+      categorySelect.value = currentCategory;
+    }
+
+    // フィルター適用
+    function applyFilters() {
+      const broker = document.getElementById('filterBroker').value;
+      const symbol = document.getElementById('filterSymbol').value;
+      const category = document.getElementById('filterCategory').value;
+      const tradeType = document.getElementById('filterTradeType').value;
+
+      filteredEntries = entries.filter(e => {
+        if (broker && e.brokerAccount !== broker) return false;
+        if (symbol && e.symbolCode !== symbol) return false;
+        if (category && e.category !== category) return false;
+        if (tradeType && e.tradeType !== tradeType) return false;
+        return true;
+      });
+
+      currentPage = 1; // フィルター時は1ページ目に戻る
+      renderEntriesTable();
+    }
+
+    // フィルターリセット
+    function resetFilters() {
+      document.getElementById('filterBroker').value = '';
+      document.getElementById('filterSymbol').value = '';
+      document.getElementById('filterCategory').value = '';
+      document.getElementById('filterTradeType').value = '';
+      applyFilters();
+    }
+
+    // 取引履歴レンダリング
+    function renderEntriesTable() {
+      if (safeMode) {
+        document.getElementById('totalEntries').textContent = entries.length;
+        document.getElementById('filteredEntries').textContent = 0;
+        document.getElementById('entriesTable').innerHTML = '<tr><td colspan="8" class="text-center py-8 text-gray-500">セーフモードで起動中（?safe=1）。テーブル描画をスキップしています。</td></tr>';
+        document.getElementById('pagination').innerHTML = '';
+        return;
+      }
+      // フィルター適用されてない場合は全データ
+      const displayEntries = filteredEntries.length > 0 || 
+        document.getElementById('filterBroker').value || 
+        document.getElementById('filterSymbol').value || 
+        document.getElementById('filterCategory').value || 
+        document.getElementById('filterTradeType').value
+        ? filteredEntries 
+        : entries;
+
+      document.getElementById('totalEntries').textContent = entries.length;
+      document.getElementById('filteredEntries').textContent = displayEntries.length;
+      
+      const totalPages = Math.ceil(displayEntries.length / PAGE_SIZE);
+      const start = (currentPage - 1) * PAGE_SIZE;
+      const end = start + PAGE_SIZE;
+      const pagedEntries = displayEntries.slice(start, end);
+
+      const html = pagedEntries.map(entry => `
+        <tr class="border-b hover:bg-gray-50">
+          <td class="px-4 py-3">${entry.date}</td>
+          <td class="px-4 py-3">${entry.symbolCode || '-'}</td>
+          <td class="px-4 py-3">${entry.category || '-'}</td>
+          <td class="px-4 py-3">${entry.tradeType || '-'}</td>
+          <td class="px-4 py-3">${entry.brokerAccount || '-'}</td>
+          <td class="px-4 py-3 text-right font-bold ${entry.pnlJPY >= 0 ? 'text-green-600' : 'text-red-600'}">${fmtJPY(entry.pnlJPY)}</td>
+          <td class="px-4 py-3 text-right font-bold ${entry.pnlUSDT >= 0 ? 'text-cyan-600' : 'text-red-600'}">${typeof entry.pnlUSDT === 'number' ? fmtUSDT(entry.pnlUSDT) : '-'}</td>
+          <td class="px-4 py-3 text-center">
+            <button onclick="editEntry('${entry.id}')" class="text-blue-600 hover:text-blue-800 mr-2">✏️</button>
+            <button onclick="deleteEntry('${entry.id}')" class="text-red-600 hover:text-red-800">🗑️</button>
+          </td>
+        </tr>
+      `).join('');
+
+      document.getElementById('entriesTable').innerHTML = html || '<tr><td colspan="8" class="text-center py-8 text-gray-500">データがありません</td></tr>';
+      
+      renderPagination(totalPages);
+    }
+
+    // ページネーション
+    function renderPagination(totalPages) {
+      if (totalPages <= 1) {
+        document.getElementById('pagination').innerHTML = '';
+        return;
+      }
+
+      let pages = [];
+      
+      // 最初・前へ
+      pages.push(`<button onclick="goToPage(1)" ${currentPage === 1 ? 'disabled' : ''} class="px-3 py-2 bg-white border rounded-lg hover:bg-gray-100 ${currentPage === 1 ? 'opacity-50' : ''}">⏮️ 最初</button>`);
+      pages.push(`<button onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} class="px-3 py-2 bg-white border rounded-lg hover:bg-gray-100 ${currentPage === 1 ? 'opacity-50' : ''}">⬅️ 前へ</button>`);
+      
+      // ページ番号
+      if (totalPages <= 7) {
+        // 7ページ以下: 全部表示
+        for (let i = 1; i <= totalPages; i++) {
+          pages.push(`<button onclick="goToPage(${i})" class="px-3 py-2 ${i === currentPage ? 'bg-purple-600 text-white' : 'bg-white'} border rounded-lg hover:bg-purple-100">${i}</button>`);
+        }
+      } else {
+        // 8ページ以上: 省略表示
+        // 最初の3ページ
+        for (let i = 1; i <= 3; i++) {
+          pages.push(`<button onclick="goToPage(${i})" class="px-3 py-2 ${i === currentPage ? 'bg-purple-600 text-white' : 'bg-white'} border rounded-lg hover:bg-purple-100">${i}</button>`);
+        }
+        
+        pages.push('<span class="px-3 py-2">...</span>');
+        
+        // 最後の3ページ
+        for (let i = totalPages - 2; i <= totalPages; i++) {
+          pages.push(`<button onclick="goToPage(${i})" class="px-3 py-2 ${i === currentPage ? 'bg-purple-600 text-white' : 'bg-white'} border rounded-lg hover:bg-purple-100">${i}</button>`);
+        }
+      }
+      
+      // 次へ・最後
+      pages.push(`<button onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} class="px-3 py-2 bg-white border rounded-lg hover:bg-gray-100 ${currentPage === totalPages ? 'opacity-50' : ''}">次へ ➡️</button>`);
+      pages.push(`<button onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''} class="px-3 py-2 bg-white border rounded-lg hover:bg-gray-100 ${currentPage === totalPages ? 'opacity-50' : ''}">最後 ⏭️</button>`);
+
+      document.getElementById('pagination').innerHTML = pages.join('');
+    }
+
+    function goToPage(page) {
+      currentPage = page;
+      renderEntriesTable();
+    }
+
+    // 口座追加モーダル
+    function showAddAccountModal() {
+      editingBroker = null;
+      document.getElementById('modalTitle').textContent = '口座を追加';
+      document.getElementById('accountBroker').value = '';
+      document.getElementById('accountBalance').value = '';
+      document.getElementById('accountBalanceUSDT').value = '';
+      document.getElementById('accountBaselineDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('accountBroker').disabled = false;
+      document.getElementById('accountModal').classList.remove('hidden');
+    }
+
+    // 口座編集
+    function editAccount(broker) {
+      editingBroker = broker;
+      const account = accounts[broker];
+      document.getElementById('modalTitle').textContent = '口座を編集';
+      document.getElementById('accountBroker').value = broker;
+      document.getElementById('accountBalance').value = account.balance || 0;
+      document.getElementById('accountBalanceUSDT').value = account.balanceUSDT || 0;
+      document.getElementById('accountBaselineDate').value = account.baselineDate;
+      document.getElementById('accountBroker').disabled = true;
+      document.getElementById('accountModal').classList.remove('hidden');
+    }
+
+    function closeAccountModal() {
+      document.getElementById('accountModal').classList.add('hidden');
+    }
+
+    // 口座保存
+    function saveAccount() {
+      const broker = document.getElementById('accountBroker').value.trim();
+      const balance = parseFloat(document.getElementById('accountBalance').value) || 0;
+      const balanceUSDT = parseFloat(document.getElementById('accountBalanceUSDT').value) || 0;
+      const baselineDate = document.getElementById('accountBaselineDate').value;
+
+      if (!broker || !baselineDate) {
+        alert('必須項目を入力してください');
+        return;
+      }
+
+      accounts[broker] = { 
+        balance, 
+        balanceUSDT, 
+        baselineDate,
+        baselineTimestamp: Date.now()  // 残高修正時刻を記録
+      };
+      saveData();
+      closeAccountModal();
+      init();
+      alert('✅ 保存しました！');
+    }
+
+    // 口座削除
+    function deleteAccount(broker) {
+      if (!confirm(`${broker}を削除しますか？`)) return;
+      delete accounts[broker];
+      saveData();
+      init();
+    }
+
+    // エントリ削除
+    function deleteEntry(id) {
+      if (!confirm('この記録を削除しますか？')) return;
+      entries = entries.filter(e => e.id !== id);
+      saveData();
+      init();
+    }
+
+    // エントリ編集
+    function editEntry(id) {
+      const entry = entries.find(e => e.id === id);
+      if (!entry) return;
+      
+      // プルダウン更新
+      populateBrokerOptions();
+      populateCategoryOptions();
+      
+      // フォームに値を設定
+      document.getElementById('tradeDate').value = entry.date;
+      document.getElementById('tradeBroker').value = entry.brokerAccount || '';
+      updateSymbolOptions(); // 銘柄プルダウン更新
+      document.getElementById('tradeSymbol').value = entry.symbolCode || '';
+      document.getElementById('tradeCategory').value = entry.category || '';
+      document.getElementById('tradeType').value = entry.tradeType || 'ロング';
+      document.getElementById('tradePnL').value = entry.pnlJPY || '';
+      document.getElementById('tradePnLUSDT').value = entry.pnlUSDT || '';
+      document.getElementById('tradeNote').value = entry.note || '';
+      
+      // 編集モードフラグ
+      window.editingEntryId = id;
+      document.getElementById('tradeModal').classList.remove('hidden');
+    }
+
+    // 取引追加モーダル
+    function showAddTradeModal() {
+      // プルダウン更新
+      populateBrokerOptions();
+      populateCategoryOptions();
+      
+      // フォーム初期化
+      document.getElementById('tradeDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('tradeBroker').value = '';
+      document.getElementById('tradeSymbol').value = '';
+      document.getElementById('tradeSymbolCustom').value = '';
+      document.getElementById('tradeCategory').value = '';
+      document.getElementById('tradeCategoryCustom').value = '';
+      document.getElementById('tradeType').value = 'ロング';
+      document.getElementById('tradePnL').value = '';
+      document.getElementById('tradePnLUSDT').value = '';
+      document.getElementById('tradeNote').value = '';
+      window.editingEntryId = null; // 編集モードをクリア
+      document.getElementById('tradeModal').classList.remove('hidden');
+    }
+
+    // 証券会社プルダウンを更新
+    function populateBrokerOptions() {
+      // 口座一覧に登録されている証券会社のみを表示
+      const brokers = Object.keys(accounts).sort();
+      const select = document.getElementById('tradeBroker');
+      select.innerHTML = '<option value="">-- 証券会社を選択 --</option>';
+      brokers.forEach(broker => {
+        const option = document.createElement('option');
+        option.value = broker;
+        option.textContent = broker;
+        select.appendChild(option);
+      });
+    }
+
+    // カテゴリプルダウンを更新
+    function populateCategoryOptions() {
+      // 固定のカテゴリリスト
+      const fixedCategories = [
+        '米国株',
+        '米国指数',
+        '日本株',
+        '日本指数',
+        'FX',
+        'コモディティ',
+        '債券',
+        '投資信託',
+        'オーバーナイト金利',
+        'その他手数料'
+      ];
+      
+      // 既存データから追加のカテゴリを取得
+      const existingCategories = [...new Set(entries.map(e => e.category))].filter(c => c && !fixedCategories.includes(c)).sort();
+      
+      // 統合
+      const allCategories = [...fixedCategories, ...existingCategories];
+      
+      const select = document.getElementById('tradeCategory');
+      select.innerHTML = '<option value="">-- カテゴリを選択 --</option>';
+      allCategories.forEach(category => {
+        const option = document.createElement('option');
+        option.value = category;
+        option.textContent = category;
+        select.appendChild(option);
+      });
+    }
+
+    // 銘柄プルダウンを更新（証券会社選択時）
+    function updateSymbolOptions() {
+      const broker = document.getElementById('tradeBroker').value;
+      const select = document.getElementById('tradeSymbol');
+      
+      if (!broker) {
+        select.innerHTML = '<option value="">-- 証券会社を先に選択 --</option>';
+        return;
+      }
+      
+      // 選択した証券会社の過去銘柄を取得
+      const symbols = [...new Set(
+        entries
+          .filter(e => e.brokerAccount === broker)
+          .map(e => e.symbolCode)
+      )].filter(s => s).sort();
+      
+      select.innerHTML = '<option value="">-- 銘柄を選択 --</option>';
+      symbols.forEach(symbol => {
+        const option = document.createElement('option');
+        option.value = symbol;
+        option.textContent = symbol;
+        select.appendChild(option);
+      });
+    }
+
+    function closeTradeModal() {
+      document.getElementById('tradeModal').classList.add('hidden');
+    }
+
+    function saveTrade() {
+      // 日付（必須）
+      const date = document.getElementById('tradeDate').value;
+      
+      // 銘柄：プルダウンまたは手入力
+      let symbolCode = document.getElementById('tradeSymbol').value.trim();
+      const symbolCustom = document.getElementById('tradeSymbolCustom').value.trim();
+      if (symbolCustom) symbolCode = symbolCustom;
+      
+      // カテゴリ：プルダウンまたは手入力
+      let category = document.getElementById('tradeCategory').value.trim();
+      const categoryCustom = document.getElementById('tradeCategoryCustom').value.trim();
+      if (categoryCustom) category = categoryCustom;
+      
+      const tradeType = document.getElementById('tradeType').value;
+      const brokerAccount = document.getElementById('tradeBroker').value.trim();
+      const pnlJPY = parseFloat(document.getElementById('tradePnL').value) || 0;
+      const pnlUSDT = parseFloat(document.getElementById('tradePnLUSDT').value) || 0;
+      const note = document.getElementById('tradeNote').value.trim();
+
+      // 必須項目チェック：日付、証券会社、銘柄、損益額（JPYまたはUSDT）
+      if (!date) {
+        alert('日付を入力してください');
+        return;
+      }
+      if (!brokerAccount) {
+        alert('証券会社を選択してください');
+        return;
+      }
+      if (!symbolCode) {
+        alert('銘柄を入力してください');
+        return;
+      }
+      if (pnlJPY === 0 && pnlUSDT === 0) {
+        alert('損益額（JPYまたはUSDT）を入力してください');
+        return;
+      }
+
+      // 編集モードか新規追加か判定
+      if (window.editingEntryId) {
+        // 編集モード
+        const entry = entries.find(e => e.id === window.editingEntryId);
+        if (entry) {
+          const account = accounts[entry.brokerAccount];
+          
+          // 基準日より前に入力された取引の場合のみ、残高を自動修正
+          if (account?.baselineTimestamp && entry.inputTimestamp < account.baselineTimestamp) {
+            const oldValueJPY = entry.pnlJPY || 0;
+            const oldValueUSDT = entry.pnlUSDT || 0;
+            const diffJPY = pnlJPY - oldValueJPY;
+            const diffUSDT = pnlUSDT - oldValueUSDT;
+            
+            // 残高を自動修正
+            account.balance = (account.balance || 0) + diffJPY;
+            account.balanceUSDT = (account.balanceUSDT || 0) + diffUSDT;
+            
+            console.log(`✅ 残高を自動修正: JPY ${diffJPY >= 0 ? '+' : ''}${diffJPY}, USDT ${diffUSDT >= 0 ? '+' : ''}${diffUSDT}`);
+          }
+          // 基準日より後の取引は残高を修正しない（calculateBrokerPnL()で自動計算）
+          
+          // レコードを更新（inputTimestamp は保持）
+          entry.date = date;
+          entry.symbolCode = symbolCode;
+          entry.category = category;
+          entry.tradeType = tradeType;
+          entry.brokerAccount = brokerAccount;
+          entry.pnlJPY = pnlJPY;
+          entry.pnlUSDT = pnlUSDT;
+          entry.note = note;
+          // entry.inputTimestamp は変更しない！
+        }
+        window.editingEntryId = null;
+      } else {
+        // 新規追加モード
+        const newEntry = {
+          id: generateId(),
+          date,
+          inputTimestamp: Date.now(),  // 入力時刻を記録
+          symbolCode,
+          category,
+          tradeType,
+          brokerAccount,
+          pnlJPY,
+          pnlUSDT,
+          note
+        };
+        entries.push(newEntry);
+      }
+      
+      entries.sort((a, b) => b.date.localeCompare(a.date));
+      saveData();
+      closeTradeModal();
+      init();
+      alert('✅ 保存しました！');
+    }
+
+    // 一括編集モーダル
+    function showBulkEditModal() {
+      // 証券会社プルダウンを更新
+      const brokers = [...new Set(entries.map(e => e.brokerAccount))].filter(b => b).sort();
+      const select = document.getElementById('bulkEditBroker');
+      select.innerHTML = '<option value="">-- 証券会社を選択 --</option>';
+      brokers.forEach(broker => {
+        const option = document.createElement('option');
+        option.value = broker;
+        option.textContent = broker;
+        select.appendChild(option);
+      });
+      
+      // 初期化
+      document.getElementById('bulkEditBroker').value = '';
+      document.getElementById('bulkEditFrom').innerHTML = '<option value="">-- 証券会社を先に選択 --</option>';
+      document.getElementById('bulkEditSymbol').value = '';
+      document.getElementById('bulkEditCategory').value = '';
+      document.getElementById('bulkEditPreview').classList.add('hidden');
+      document.getElementById('bulkEditModal').classList.remove('hidden');
+    }
+
+    // 一括編集の銘柄プルダウンを更新
+    function updateBulkEditSymbols() {
+      const broker = document.getElementById('bulkEditBroker').value;
+      const select = document.getElementById('bulkEditFrom');
+      
+      if (!broker) {
+        select.innerHTML = '<option value="">-- 証券会社を先に選択 --</option>';
+        return;
+      }
+      
+      // 選択した証券会社の銘柄を取得
+      const symbols = [...new Set(
+        entries
+          .filter(e => e.brokerAccount === broker)
+          .map(e => e.symbolCode)
+      )].filter(s => s).sort();
+      
+      select.innerHTML = '<option value="">-- 銘柄を選択 --</option>';
+      symbols.forEach(symbol => {
+        const option = document.createElement('option');
+        option.value = symbol;
+        option.textContent = symbol;
+        select.appendChild(option);
+      });
+    }
+
+    function closeBulkEditModal() {
+      document.getElementById('bulkEditModal').classList.add('hidden');
+    }
+
+    function previewBulkEdit() {
+      const broker = document.getElementById('bulkEditBroker').value;
+      const from = document.getElementById('bulkEditFrom').value;
+      const toSymbol = document.getElementById('bulkEditSymbol').value.trim();
+      const toCategory = document.getElementById('bulkEditCategory').value.trim();
+
+      if (!broker) {
+        alert('証券会社を選択してください');
+        return;
+      }
+
+      if (!from) {
+        alert('変更前の銘柄コードを選択してください');
+        return;
+      }
+
+      if (!toSymbol && !toCategory) {
+        alert('変更後の銘柄コードまたはカテゴリを入力してください');
+        return;
+      }
+
+      const matchedEntries = entries.filter(e => e.brokerAccount === broker && e.symbolCode === from);
+
+      if (matchedEntries.length === 0) {
+        alert(`該当するデータがありません`);
+        return;
+      }
+
+      let previewText = `${matchedEntries.length}件のデータが変更されます\n証券会社: ${broker}\n`;
+      if (toSymbol) previewText += `銘柄: ${from} → ${toSymbol}\n`;
+      if (toCategory) previewText += `カテゴリ: → ${toCategory}`;
+
+      document.getElementById('bulkEditPreviewText').textContent = previewText;
+      document.getElementById('bulkEditPreview').classList.remove('hidden');
+    }
+
+    function executeBulkEdit() {
+      const broker = document.getElementById('bulkEditBroker').value;
+      const from = document.getElementById('bulkEditFrom').value;
+      const toSymbol = document.getElementById('bulkEditSymbol').value.trim();
+      const toCategory = document.getElementById('bulkEditCategory').value.trim();
+
+      if (!broker) {
+        alert('証券会社を選択してください');
+        return;
+      }
+
+      if (!from) {
+        alert('変更前の銘柄コードを選択してください');
+        return;
+      }
+
+      if (!toSymbol && !toCategory) {
+        alert('変更後の銘柄コードまたはカテゴリを入力してください');
+        return;
+      }
+
+      const matchedEntries = entries.filter(e => e.brokerAccount === broker && e.symbolCode === from);
+
+      if (matchedEntries.length === 0) {
+        alert(`該当するデータがありません`);
+        return;
+      }
+
+      let confirmMsg = `${matchedEntries.length}件のデータを一括変更しますか？\n\n証券会社: ${broker}\n`;
+      if (toSymbol) confirmMsg += `銘柄: ${from} → ${toSymbol}\n`;
+      if (toCategory) confirmMsg += `カテゴリ: → ${toCategory}`;
+
+      if (!confirm(confirmMsg)) {
+        return;
+      }
+
+      matchedEntries.forEach(e => {
+        if (toSymbol) e.symbolCode = toSymbol;
+        if (toCategory) e.category = toCategory;
+      });
+
+      saveData();
+      closeBulkEditModal();
+      init();
+      alert(`✅ ${matchedEntries.length}件のデータを変更しました！`);
+    }
+
+    // CSV取り込み（OANDA形式）
+    function handleCSVImport(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      // ファイル名から証券会社を自動判定
+      const fileName = file.name.toLowerCase();
+      let brokerAccount = 'その他';
+      if (fileName.includes('サクソ') || fileName.includes('saxo')) brokerAccount = 'サクソバンク';
+      else if (fileName.includes('オアンダ') || fileName.includes('oanda')) brokerAccount = 'オアンダ';
+      else if (fileName.includes('sbi')) brokerAccount = 'SBI';
+      else if (fileName.includes('fxtf')) brokerAccount = 'FXTF';
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const text = e.target.result;
+          const lines = text.split('\n');
+          const imported = [];
+          
+          // ヘッダーをスキップして2行目から処理
+          for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            
+            const cols = line.split(',');
+            if (cols.length < 5) continue; // 列が足りない場合はスキップ
+            
+            const date = cols[0].trim(); // 日付
+            const symbolCode = cols[1].trim(); // 銘柄
+            const category = cols[2].trim(); // カテゴリ
+            const tradeType = cols[3].trim(); // 売買形態
+            const pnlJPY = parseFloat(cols[4].trim()); // 損益
+            
+            // 必須項目のチェック
+            if (!date || !symbolCode || isNaN(pnlJPY)) continue;
+            
+            imported.push({
+              id: generateId(),
+              date,
+              inputTimestamp: Date.now(),  // CSV取込時刻を記録
+              symbolCode,
+              category: category || '-',
+              tradeType: tradeType || '-',
+              brokerAccount,
+              pnlJPY,
+              pnlUSDT: 0,
+              note: ''
+            });
+          }
+          
+          if (imported.length === 0) {
+            alert('取り込めるデータがありませんでした\n\n期待されるCSV形式:\n日付,銘柄,カテゴリ,売買形態,損益');
+            event.target.value = '';
+            return;
+          }
+          
+          // 通常のインポート確認
+          if (confirm(`${imported.length}件の取引を取り込みますか？\n証券会社: ${brokerAccount}`)) {
+            entries.push(...imported);
+            entries.sort((a, b) => b.date.localeCompare(a.date));
+            saveData();
+            init();
+            alert(`✅ ${imported.length}件の取引を取り込みました！\n証券会社: ${brokerAccount}`);
+          }
+          event.target.value = '';
+        } catch (err) {
+          alert(`❌ CSV取込失敗: ${err.message}`);
+          event.target.value = '';
+        }
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
+
+    // ID生成
+    function generateId() {
+      return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    }
+
+    // JSONバックアップ（Table API版）
+    async function handleJSONBackup() {
+      try {
+        const backupName = `backup-${new Date().toISOString().split('T')[0]}-${Date.now()}`;
+        const backupData = {
+          version: '5.1-tableapi',
+          exportDate: new Date().toISOString(),
+          entries,
+          accounts
+        };
+        
+        // Table APIに保存
+        const response = await fetch('tables/backups', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            backup_name: backupName,
+            backup_data: JSON.stringify(backupData),
+            backup_type: 'manual',
+            entry_count: entries.length,
+            account_count: Object.keys(accounts).length
+          })
+        });
+        
+        if (!response.ok) throw new Error('バックアップ保存失敗');
+        
+        // ローカルファイルとしてもダウンロード
+        const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${backupName}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        alert('✅ バックアップ完了！\n\nTable APIとローカルファイルに保存しました。');
+      } catch (err) {
+        alert(`❌ バックアップ失敗: ${err.message}`);
+      }
+    }
+
+    // JSON復元（ファイルから）
+    function handleJSONRestore(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (!confirm(`復元しますか？\n\n取引: ${data.entries?.length || 0}件\n口座: ${Object.keys(data.accounts || {}).length}件\n\n現在のデータは上書きされます`)) return;
+          
+          entries = data.entries || [];
+          accounts = data.accounts || {};
+          saveData();
+          init();
+          alert('✅ 復元完了！');
+          event.target.value = '';
+        } catch (err) {
+          alert(`❌ 復元失敗: ${err}`);
+        }
+      };
+      reader.readAsText(file);
+    }
+    
+    // バックアップ一覧を表示して復元
+    async function showBackupList() {
+      try {
+        const response = await fetch('tables/backups?limit=50&sort=-created_at');
+        if (!response.ok) throw new Error('バックアップ一覧取得失敗');
+        
+        const result = await response.json();
+        const backups = result.data || [];
+        
+        if (backups.length === 0) {
+          alert('保存されたバックアップがありません');
+          return;
+        }
+        
+        let message = '復元するバックアップを選択してください:\n\n';
+        backups.forEach((b, i) => {
+          const date = new Date(b.created_at).toLocaleString('ja-JP');
+          message += `${i + 1}. ${b.backup_name}\n   (${date} | 取引:${b.entry_count}件 口座:${b.account_count}件)\n\n`;
+        });
+        
+        const choice = prompt(message + '\n番号を入力してください (1-' + backups.length + ')：');
+        const index = parseInt(choice) - 1;
+        
+        if (index >= 0 && index < backups.length) {
+          await restoreFromBackup(backups[index]);
+        }
+      } catch (err) {
+        alert(`❌ バックアップ一覧取得失敗: ${err.message}`);
+      }
+    }
+    
+    // バックアップから復元
+    async function restoreFromBackup(backup) {
+      try {
+        const data = JSON.parse(backup.backup_data);
+        if (!confirm(`復元しますか？\n\n取引: ${data.entries?.length || 0}件\n口座: ${Object.keys(data.accounts || {}).length}件\n\n現在のデータは上書きされます`)) return;
+        
+        entries = data.entries || [];
+        accounts = data.accounts || {};
+        saveData();
+        init();
+        alert('✅ 復元完了！');
+      } catch (err) {
+        alert(`❌ 復元失敗: ${err.message}`);
+      }
+    }
+
+    // リカバリーUI
+    function showRecoveryBar() {
+      const bar = document.getElementById('alertBar');
+      if (!bar) return;
+      bar.className = 'mb-4 p-3 rounded-xl border-2 border-red-200 bg-red-50 text-red-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2';
+      bar.innerHTML = `
+        <div class="font-bold">⚠️ ローカルデータの読み込みに失敗しました。バックアップからの復元または初期化が必要です。</div>
+        <div class="flex gap-2">
+          <button onclick="document.querySelector('input[type=\"file\"][accept=\".json\"]').click()" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold">📥 バックアップから復元</button>
+          <button onclick="clearAllData()" class="px-3 py-1.5 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 font-bold">🧹 データ初期化</button>
+        </div>`;
+    }
+    function hideRecoveryBar() {
+      const bar = document.getElementById('alertBar');
+      if (!bar) return;
+      bar.className = 'hidden mb-4';
+      bar.innerHTML = '';
+    }
+    function clearAllData() {
+      if (!confirm('すべてのローカルデータ（取引・口座）を初期化します。よろしいですか？')) return;
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(ACCOUNTS_KEY);
+        window.recoveryError = false;
+        location.reload();
+      } catch (e) {
+        alert('初期化に失敗しました: ' + e.message);
+      }
+    }
+
+    // 取引データのみ全削除（口座は残す）
+    function deleteAllTrades() {
+      if (!confirm(`⚠️ 全ての取引履歴を削除します。\n\n現在の取引件数: ${entries.length}件\n\n※口座データは削除されません\n※この操作は取り消せません\n\n本当に削除しますか？`)) return;
+      try {
+        entries = [];
+        saveData();
+        init();
+        alert('✅ 全ての取引履歴を削除しました');
+      } catch (e) {
+        alert('❌ 削除に失敗しました: ' + e.message);
+      }
+    }
+
+    // ユーティリティ
+    function preciseSum(arr, scale) {
+      let total = 0;
+      for (const v of arr) {
+        const n = Number(v);
+        if (!Number.isFinite(n)) continue;
+        total += Math.round(n * scale);
+      }
+      return total / scale;
+    }
+    function fmtJPY(n) {
+      const opts = { minimumFractionDigits: 0, maximumFractionDigits: 3 };
+      return `${n >= 0 ? '+' : ''}${Number(n).toLocaleString('ja-JP', opts)}円`;
+    }
+
+    function fmtJPY2(n) {
+      return `¥${Number(n).toLocaleString('ja-JP')}`;
+    }
+
+    function fmtUSDT(n) {
+      const sign = n >= 0 ? '+' : '';
+      return `${sign}${Number(n).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} USDT`;
+    }
+
+    // 初期化実行
+    init();
+  </script>
+</body>
+</html>

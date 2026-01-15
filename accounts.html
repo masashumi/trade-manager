@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>💼 口座管理</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 min-h-screen">
+  <div class="container mx-auto p-4 sm:p-8 max-w-7xl">
+    <!-- ヘッダー -->
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h1 class="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">💼 口座管理</h1>
+        <p class="text-gray-600 mt-2">証券口座の残高と損益を管理</p>
+      </div>
+      <div class="flex gap-2">
+        <a href="index.html" class="px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl hover:from-purple-600 hover:to-purple-700 transition shadow-lg">🎯 トレード記録</a>
+        <a href="stats.html" class="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition shadow-lg">📊 統計</a>
+        <a href="technical.html" class="px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl hover:from-orange-600 hover:to-orange-700 transition shadow-lg">📈 テクニカル</a>
+      </div>
+    </div>
+
+    <!-- 管理ボタン -->
+    <div class="flex gap-2 mb-8 flex-wrap">
+      <button onclick="handleJSONBackup()" class="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition shadow-lg font-bold">💾 JSONバックアップ</button>
+      <label class="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition shadow-lg font-bold cursor-pointer">
+        📥 JSON復元
+        <input type="file" accept=".json" onchange="handleJSONRestore(event)" class="hidden">
+      </label>
+      <button onclick="handleResetBaselineDates()" class="px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl hover:from-orange-600 hover:to-orange-700 transition shadow-lg font-bold">🔄 基準日を一括リセット</button>
+      <button onclick="handleClearAllAccounts()" class="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition shadow-lg font-bold">🗑️ 全口座削除</button>
+    </div>
+
+    <!-- 統計サマリー -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div class="bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-2xl shadow-xl text-white">
+        <p class="text-sm opacity-90 mb-1">💵 現金</p>
+        <p id="cashBalance" class="text-3xl font-bold">¥0</p>
+      </div>
+      <div class="bg-gradient-to-br from-purple-500 to-purple-600 p-6 rounded-2xl shadow-xl text-white">
+        <p class="text-sm opacity-90 mb-1">💎 総資産</p>
+        <p id="totalAssets" class="text-3xl font-bold">¥0</p>
+        <p class="text-xs mt-2 opacity-80">現金 + 証券残高</p>
+      </div>
+      <div class="bg-gradient-to-br from-green-500 to-green-600 p-6 rounded-2xl shadow-xl text-white">
+        <p class="text-sm opacity-90 mb-1">総投資額</p>
+        <p id="totalDeposits" class="text-3xl font-bold">¥0</p>
+      </div>
+      <div class="bg-gradient-to-br from-orange-500 to-orange-600 p-6 rounded-2xl shadow-xl text-white">
+        <p class="text-sm opacity-90 mb-1">総損益</p>
+        <p id="totalPnL" class="text-3xl font-bold">¥0</p>
+      </div>
+    </div>
+
+    <!-- デバッグパネル -->
+    <div class="bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-6 mb-8">
+      <h2 class="text-xl font-bold text-gray-900 mb-4">🔍 デバッグ情報</h2>
+      <div id="debugInfo" class="space-y-2 text-sm"></div>
+    </div>
+
+    <!-- 残高編集モーダル -->
+    <div id="editBalanceModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
+        <div class="bg-gradient-to-r from-blue-500 to-purple-500 p-6 rounded-t-2xl">
+          <div class="flex justify-between items-center">
+            <h2 class="text-2xl font-bold text-white">✏️ 残高を編集</h2>
+            <button onclick="closeEditBalanceModal()" class="text-white hover:text-gray-200 text-2xl">✕</button>
+          </div>
+        </div>
+        <div class="p-6">
+          <div class="mb-4">
+            <p class="text-lg font-bold text-gray-900 mb-2">証券会社: <span id="editBrokerName"></span></p>
+          </div>
+          
+          <div class="space-y-4">
+            <div class="bg-blue-50 rounded-lg p-4">
+              <label class="block text-sm font-medium text-gray-700 mb-1">現在残高（円）</label>
+              <input type="number" id="editBalanceAmount" class="w-full px-3 py-2 border-2 border-blue-200 rounded-xl text-lg font-bold">
+              <p class="text-xs text-gray-500 mt-2">💡 ログインして確認した最新の残高を入力してください</p>
+            </div>
+          </div>
+          
+          <div class="flex gap-3 mt-6">
+            <button onclick="saveEditBalance()" class="flex-1 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-bold">💾 保存</button>
+            <button onclick="closeEditBalanceModal()" class="px-6 py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition font-bold">キャンセル</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 証券口座一覧 -->
+    <div class="bg-white rounded-2xl shadow-xl border-2 border-blue-200 p-6 mb-8">
+      <h2 class="text-2xl font-bold text-gray-900 mb-4">🏦 証券口座一覧</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-gradient-to-r from-blue-100 to-purple-100">
+            <tr>
+              <th class="px-4 py-3 text-left">証券会社</th>
+              <th class="px-4 py-3 text-right">現在残高</th>
+              <th class="px-4 py-3 text-right">損益</th>
+              <th class="px-4 py-3 text-center">トレード件数</th>
+              <th class="px-4 py-3 text-center">操作</th>
+            </tr>
+          </thead>
+          <tbody id="accountsTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- グラフ -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div class="bg-white rounded-2xl shadow-xl border-2 border-blue-200 p-6">
+        <h3 class="text-xl font-bold text-gray-900 mb-4">口座別残高</h3>
+        <canvas id="balanceChart"></canvas>
+      </div>
+      <div class="bg-white rounded-2xl shadow-xl border-2 border-blue-200 p-6">
+        <h3 class="text-xl font-bold text-gray-900 mb-4">総資産推移</h3>
+        <canvas id="assetsChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // グローバル変数
+    const STORAGE_KEY = 'my-finance:pnl_entries:v3';
+    const ACCOUNTS_KEY = 'my-finance:accounts-data:v1';
+    
+    let investmentData = { entries: [] };
+    let accountsData = { version: '3.1', accounts: {}, cash: { initialBalance: 0, initialDate: '', adjustments: [] } };
+
+    // 初期化
+    function init() {
+      loadData();
+      renderAccountsTable();
+      renderCharts();
+    }
+
+    // データ読み込み
+    function loadData() {
+      // トレードデータ（★配列として保存されているので直接読み込む）
+      const data = localStorage.getItem(STORAGE_KEY);
+      if (data) {
+        const parsed = JSON.parse(data);
+        // 配列の場合はそのまま、オブジェクトの場合はentriesを取り出す
+        investmentData.entries = Array.isArray(parsed) ? parsed : (parsed.entries || []);
+      }
+
+      // 口座データ
+      const accounts = localStorage.getItem(ACCOUNTS_KEY);
+      if (accounts) {
+        accountsData = JSON.parse(accounts);
+      }
+
+      console.log('📊 トレードデータ読み込み完了:', investmentData.entries.length, '件');
+      console.log('💼 口座データ読み込み完了:', Object.keys(accountsData.accounts || {}).length, '件');
+      console.log('🔍 証券会社一覧:', [...new Set(investmentData.entries.map(e => e.brokerAccount))].join(', '));
+    }
+
+    // 証券会社別の損益計算（シンプル版）
+    function calculateBrokerPnL(broker, baselineDate = null) {
+      const entries = investmentData.entries || [];
+      let filteredEntries = entries.filter(e => e.brokerAccount === broker);
+      
+      if (baselineDate) {
+        filteredEntries = filteredEntries.filter(e => e.date > baselineDate);
+      }
+
+      const totalPnL = filteredEntries.reduce((sum, e) => sum + (e.pnlJPY || 0), 0);
+      const count = filteredEntries.length;
+
+      return { totalPnL, count, entries: filteredEntries };
+    }
+
+    // 口座テーブルのレンダリング
+    function renderAccountsTable() {
+      const accounts = accountsData.accounts || {};
+      const brokers = Object.keys(accounts);
+
+      if (brokers.length === 0) {
+        document.getElementById('accountsTable').innerHTML = '<tr><td colspan="5" class="text-center py-8 text-gray-500">口座データがありません</td></tr>';
+        updateSummary(0, 0, 0, 0);
+        return;
+      }
+
+      let totalBalance = 0;
+      let debugInfo = [];
+
+      const rows = brokers.map(broker => {
+        const account = accounts[broker];
+        const { totalPnL: allPnL, count: allCount } = calculateBrokerPnL(broker, null);
+
+        // ★シンプル設計: 残高だけ
+        const currentBalance = account.balance || 0;
+        totalBalance += currentBalance;
+
+        debugInfo.push(`<strong>${broker}</strong>: 全期間${allCount}件(${fmtJPY(allPnL)})`);
+
+        return `
+          <tr class="border-b hover:bg-gray-50">
+            <td class="px-4 py-3 font-medium">${broker}</td>
+            <td class="px-4 py-3 text-right font-bold">${fmtJPY2(currentBalance)}</td>
+            <td class="px-4 py-3 text-right font-bold ${allPnL >= 0 ? 'text-green-600' : 'text-red-600'}">${fmtJPY(allPnL)}</td>
+            <td class="px-4 py-3 text-center">${allCount}件</td>
+            <td class="px-4 py-3 text-center">
+              <button onclick="editAccount('${broker}')" class="text-blue-600 hover:text-blue-800">✏️</button>
+              <button onclick="deleteAccount('${broker}')" class="text-red-600 hover:text-red-800 ml-2">🗑️</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      document.getElementById('accountsTable').innerHTML = rows;
+
+      // ★★★ 総損益は全エントリから直接計算 ★★★
+      const allEntries = investmentData.entries || [];
+      const actualTotalPnL = allEntries.reduce((sum, e) => sum + (e.pnlJPY || 0), 0);
+      
+      // 総投資額 = 総資産 - 総損益
+      const totalInvestment = totalBalance - actualTotalPnL;
+      
+      updateSummary(totalBalance, totalInvestment, actualTotalPnL, brokers.length);
+
+      // デバッグ情報
+      const allBrokers = [...new Set(allEntries.map(e => e.brokerAccount))].filter(b => b);
+      
+      document.getElementById('debugInfo').innerHTML = `
+        <p><strong>トレードデータ総件数:</strong> ${allEntries.length}件</p>
+        <p><strong>総損益（全トレード）:</strong> ${fmtJPY(actualTotalPnL)}</p>
+        <p><strong>トレードデータに含まれる証券会社:</strong> ${allBrokers.join(', ')}</p>
+        <p class="mt-2"><strong>口座データに登録されている証券会社:</strong> ${brokers.join(', ')}</p>
+        <p class="mt-2"><strong>証券会社別（口座データ基準）:</strong></p>
+        ${debugInfo.map(info => `<p class="ml-4">• ${info}</p>`).join('')}
+        <p class="mt-2"><strong>★実際のトレードデータ内訳:</strong></p>
+        ${allBrokers.map(broker => {
+          const brokerEntries = allEntries.filter(e => e.brokerAccount === broker);
+          const brokerPnL = brokerEntries.reduce((sum, e) => sum + (e.pnlJPY || 0), 0);
+          return `<p class="ml-4">• ${broker}: ${brokerEntries.length}件, ${fmtJPY(brokerPnL)}</p>`;
+        }).join('')}
+      `;
+    }
+
+    // サマリー更新
+    function updateSummary(accountsBalance, totalInvestment, pnl, count) {
+      // 現金残高を計算（簡易版：cashデータがあれば使う）
+      const cashBalance = accountsData.cash?.initialBalance || 0;
+      
+      // 総資産 = 現金 + 証券口座の残高合計
+      const totalAssets = cashBalance + accountsBalance;
+      
+      document.getElementById('cashBalance').textContent = fmtJPY2(cashBalance);
+      document.getElementById('totalAssets').textContent = fmtJPY2(totalAssets);
+      document.getElementById('totalDeposits').textContent = fmtJPY2(totalInvestment);
+      document.getElementById('totalPnL').textContent = fmtJPY(pnl);
+    }
+
+    // グラフのレンダリング
+    function renderCharts() {
+      const accounts = accountsData.accounts || {};
+      const brokers = Object.keys(accounts);
+
+      if (brokers.length === 0) return;
+
+      // 口座別残高グラフ
+      const balances = brokers.map(broker => {
+        const account = accounts[broker];
+        const { totalPnL: pnl } = calculateBrokerPnL(broker, account.inputMode === 'balance' ? account.baselineDate : null);
+        
+        if (account.inputMode === 'balance') {
+          return account.baselineBalance + pnl;
+        } else {
+          const { totalPnL: allPnL } = calculateBrokerPnL(broker, null);
+          return (account.baselineInvestment || 0) + allPnL;
+        }
+      });
+
+      const balanceCtx = document.getElementById('balanceChart').getContext('2d');
+      new Chart(balanceCtx, {
+        type: 'doughnut',
+        data: {
+          labels: brokers,
+          datasets: [{
+            data: balances,
+            backgroundColor: [
+              'rgba(59, 130, 246, 0.8)',
+              'rgba(168, 85, 247, 0.8)',
+              'rgba(236, 72, 153, 0.8)',
+              'rgba(34, 197, 94, 0.8)',
+              'rgba(251, 146, 60, 0.8)'
+            ]
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: 'bottom' }
+          }
+        }
+      });
+
+      // 総資産推移グラフ（過去6ヶ月）
+      const months = [];
+      const assetsHistory = [];
+      const today = new Date();
+      
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        const monthStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        months.push(monthStr);
+
+        // その月末までの累積資産を計算
+        let totalAsset = 0;
+        brokers.forEach(broker => {
+          const account = accounts[broker];
+          const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+          const { totalPnL: pnl } = calculateBrokerPnL(broker, account.inputMode === 'balance' ? account.baselineDate : null);
+          
+          // baselineDate より前なら資産は0
+          if (account.baselineDate && endOfMonth < new Date(account.baselineDate)) {
+            return;
+          }
+
+          if (account.inputMode === 'balance') {
+            totalAsset += account.baselineBalance + pnl;
+          } else {
+            const { totalPnL: allPnL } = calculateBrokerPnL(broker, null);
+            totalAsset += (account.baselineInvestment || 0) + allPnL;
+          }
+        });
+        assetsHistory.push(totalAsset);
+      }
+
+      const assetsCtx = document.getElementById('assetsChart').getContext('2d');
+      new Chart(assetsCtx, {
+        type: 'line',
+        data: {
+          labels: months,
+          datasets: [{
+            label: '総資産',
+            data: assetsHistory,
+            borderColor: 'rgba(59, 130, 246, 1)',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            tension: 0.4
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  return '¥' + value.toLocaleString('ja-JP');
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // JSONバックアップ
+    function handleJSONBackup() {
+      // トレードデータの情報を取得
+      let latestTradeDate = null;
+      let totalTradeCount = 0;
+      let totalTradePnL = 0;
+      
+      const tradeData = localStorage.getItem(STORAGE_KEY);
+      if (tradeData) {
+        try {
+          const entries = JSON.parse(tradeData);
+          const dates = entries.map(e => e.date).sort();
+          latestTradeDate = dates[dates.length - 1];
+          totalTradeCount = entries.length;
+          totalTradePnL = entries.reduce((sum, e) => sum + (e.pnlJPY || 0), 0);
+        } catch (err) {
+          console.error('トレードデータ読み込みエラー:', err);
+        }
+      }
+      
+      const backupData = {
+        version: '4.0',
+        exportDate: new Date().toISOString(),
+        latestTradeDate: latestTradeDate,
+        totalTradeCount: totalTradeCount,
+        totalTradePnL: totalTradePnL,
+        accounts: accountsData.accounts,
+        cash: accountsData.cash
+      };
+      
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `accounts-backup-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      alert(`✅ JSONバックアップ完了！（シンプル版 v4.0）\n\nトレード最新日: ${latestTradeDate}\n総取引件数: ${totalTradeCount}件\n総損益: ${fmtJPY(totalTradePnL)}`);
+    }
+
+    // JSON復元
+    function handleJSONRestore(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          
+          if (!data.version || !data.accounts) {
+            alert('⚠️ 不正なバックアップファイルです');
+            return;
+          }
+          
+          // ★★★ 配列形式を自動変換 ★★★
+          if (Array.isArray(data.accounts)) {
+            console.log('📝 配列形式を検出、オブジェクト形式に変換します...');
+            const accountsObj = {};
+            data.accounts.forEach(acc => {
+              accountsObj[acc.broker] = acc;
+            });
+            data.accounts = accountsObj;
+            console.log('✅ 変換完了:', Object.keys(accountsObj));
+          }
+          
+          // ★★★ バックアップ情報を表示 ★★★
+          let backupInfo = `📦 口座データを復元します。\n\n`;
+          backupInfo += `バージョン: ${data.version}\n`;
+          backupInfo += `エクスポート日: ${new Date(data.exportDate).toLocaleString('ja-JP')}\n`;
+          backupInfo += `口座数: ${Object.keys(data.accounts || {}).length}件\n`;
+          
+          if (data.latestTradeDate) {
+            backupInfo += `\n📊 トレード情報:\n`;
+            backupInfo += `最新取引日: ${data.latestTradeDate}\n`;
+            backupInfo += `総取引件数: ${data.totalTradeCount}件\n`;
+            backupInfo += `総損益: ${fmtJPY(data.totalTradePnL)}\n`;
+          }
+          
+          backupInfo += `\n現在のデータは上書きされます。よろしいですか？`;
+          
+          if (!confirm(backupInfo)) return;
+          
+          // ★★★ 基準日を自動調整 ★★★
+          const tradeData = localStorage.getItem(STORAGE_KEY);
+          if (tradeData) {
+            try {
+              const entries = JSON.parse(tradeData);
+              const dates = entries.map(e => e.date).sort();
+              const latestTradeDate = dates[dates.length - 1];
+              
+              console.log('📅 現在のトレードデータ最新日:', latestTradeDate);
+              console.log('📅 バックアップの最新日:', data.latestTradeDate);
+              
+              let adjustedCount = 0;
+              Object.keys(data.accounts).forEach(broker => {
+                const account = data.accounts[broker];
+                
+                // ★★★ バックアップ日を記録 ★★★
+                account.backupDate = data.latestTradeDate || account.baselineDate;
+                
+                // 基準日が未来すぎる場合は自動調整
+                if (account.baselineDate > latestTradeDate) {
+                  console.warn(`⚠️ ${broker}の基準日が未来すぎる: ${account.baselineDate} → 2024-01-01に自動調整`);
+                  account.baselineDate = '2024-01-01';
+                  adjustedCount++;
+                }
+                
+                // ★★★ バックアップに損益が保存されていない場合は計算 ★★★
+                if (account.baselinePnL === undefined || account.afterBaselinePnL === undefined) {
+                  const baselinePnL = entries
+                    .filter(e => e.brokerAccount === broker && e.date <= account.baselineDate)
+                    .reduce((sum, e) => sum + (e.pnlJPY || 0), 0);
+                  
+                  const afterBaselinePnL = entries
+                    .filter(e => e.brokerAccount === broker && e.date > account.baselineDate)
+                    .reduce((sum, e) => sum + (e.pnlJPY || 0), 0);
+                  
+                  account.baselinePnL = baselinePnL;
+                  account.afterBaselinePnL = afterBaselinePnL;
+                  
+                  console.log(`🔄 ${broker}: 損益を再計算 baseline=${baselinePnL}, after=${afterBaselinePnL}`);
+                }
+              });
+              
+              if (adjustedCount > 0) {
+                alert(`⚠️ ${adjustedCount}件の口座の基準日が未来だったため、2024-01-01に自動調整しました`);
+              }
+            } catch (err) {
+              console.error('基準日調整エラー:', err);
+            }
+          }
+          
+          accountsData = {
+            version: data.version,
+            accounts: data.accounts,
+            cash: data.cash || { id: 'cash', initialBalance: 0, initialDate: '', adjustments: [] }
+          };
+          localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accountsData));
+          init();
+          alert(`✅ 復元完了！\n口座数: ${Object.keys(data.accounts || {}).length}件`);
+          event.target.value = '';
+        } catch (err) {
+          alert(`❌ 復元に失敗しました: ${err}`);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // 口座編集
+    let editingBroker = null;
+    
+    function editAccount(broker) {
+      editingBroker = broker;
+      const account = accountsData.accounts[broker];
+      if (!account) return;
+      
+      document.getElementById('editBrokerName').textContent = broker;
+      document.getElementById('editBalanceAmount').value = account.balance || 0;
+      
+      document.getElementById('editBalanceModal').classList.remove('hidden');
+    }
+    
+    function closeEditBalanceModal() {
+      document.getElementById('editBalanceModal').classList.add('hidden');
+      editingBroker = null;
+    }
+    
+    function saveEditBalance() {
+      if (!editingBroker) return;
+      
+      const balance = parseFloat(document.getElementById('editBalanceAmount').value);
+      if (isNaN(balance) || balance < 0) {
+        alert('正しい金額を入力してください');
+        return;
+      }
+      
+      accountsData.accounts[editingBroker] = {
+        broker: editingBroker,
+        balance: balance,
+        updatedAt: new Date().toISOString()
+      };
+      
+      localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accountsData));
+      
+      closeEditBalanceModal();
+      init();
+      alert('✅ 残高を更新しました！');
+    }
+
+    // 口座削除
+    function deleteAccount(broker) {
+      if (!confirm(`⚠️ ${broker}の口座を削除しますか？`)) return;
+      delete accountsData.accounts[broker];
+      localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accountsData));
+      init();
+    }
+
+    // ユーティリティ関数
+    function fmtJPY(n) {
+      return `${n >= 0 ? '+' : ''}${n.toLocaleString('ja-JP')}円`;
+    }
+
+    function fmtJPY2(n) {
+      return `¥${n.toLocaleString('ja-JP')}`;
+    }
+
+    // 初期化実行
+    init();
+  </script>
+</body>
+</html>

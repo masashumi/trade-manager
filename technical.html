@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📈 テクニカル分析</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-orange-50 via-yellow-50 to-pink-50 min-h-screen">
+  <div class="container mx-auto p-4 sm:p-8 max-w-7xl">
+    <!-- ヘッダー -->
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h1 class="text-4xl font-bold bg-gradient-to-r from-orange-600 via-yellow-600 to-pink-600 bg-clip-text text-transparent">📈 テクニカル分析</h1>
+        <p class="text-gray-600 mt-2">詳細なトレード分析とフィルタリング</p>
+      </div>
+      <div class="flex gap-2">
+        <a href="index.html" class="px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl hover:from-purple-600 hover:to-purple-700 transition shadow-lg">🎯 トレード記録</a>
+        <a href="accounts.html" class="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition shadow-lg">💼 口座管理</a>
+        <a href="stats.html" class="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition shadow-lg">📊 統計</a>
+      </div>
+    </div>
+
+    <!-- フィルター -->
+    <div class="bg-white rounded-2xl shadow-xl border-2 border-orange-200 p-6 mb-8">
+      <h2 class="text-2xl font-bold text-gray-900 mb-4">🔍 フィルター</h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <select id="filterCategory" onchange="applyFilters()" class="px-3 py-2 border-2 border-gray-200 rounded-xl">
+          <option value="">全カテゴリ</option>
+        </select>
+        <select id="filterBroker" onchange="applyFilters()" class="px-3 py-2 border-2 border-gray-200 rounded-xl">
+          <option value="">全証券会社</option>
+        </select>
+        <select id="filterTradeType" onchange="applyFilters()" class="px-3 py-2 border-2 border-gray-200 rounded-xl">
+          <option value="">全売買形態</option>
+          <option value="ロング">ロング</option>
+          <option value="ショート">ショート</option>
+        </select>
+        <button onclick="resetFilters()" class="px-4 py-2 bg-gradient-to-r from-orange-500 to-yellow-500 text-white rounded-xl hover:from-orange-600 hover:to-yellow-600 transition shadow-lg font-bold">リセット</button>
+      </div>
+      <div class="mt-4 text-center">
+        <p class="text-lg font-bold text-gray-700">該当件数: <span id="filteredCount" class="text-orange-600">0</span>件</p>
+      </div>
+    </div>
+
+    <!-- アコーディオン分析 -->
+    <div class="space-y-4">
+      <div class="bg-white rounded-2xl shadow-xl border-2 border-orange-200 overflow-hidden">
+        <button onclick="toggleSection('category')" class="w-full p-6 flex justify-between items-center hover:bg-orange-50 transition">
+          <h3 class="text-xl font-bold text-gray-900">📊 カテゴリ別分析</h3>
+          <span id="icon-category" class="text-2xl">▼</span>
+        </button>
+        <div id="section-category" class="hidden p-6 border-t">
+          <div id="content-category"></div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow-xl border-2 border-orange-200 overflow-hidden">
+        <button onclick="toggleSection('broker')" class="w-full p-6 flex justify-between items-center hover:bg-orange-50 transition">
+          <h3 class="text-xl font-bold text-gray-900">🏦 証券会社別分析</h3>
+          <span id="icon-broker" class="text-2xl">▼</span>
+        </button>
+        <div id="section-broker" class="hidden p-6 border-t">
+          <div id="content-broker"></div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow-xl border-2 border-orange-200 overflow-hidden">
+        <button onclick="toggleSection('tradeType')" class="w-full p-6 flex justify-between items-center hover:bg-orange-50 transition">
+          <h3 class="text-xl font-bold text-gray-900">📈 売買形態別分析</h3>
+          <span id="icon-tradeType" class="text-2xl">▼</span>
+        </button>
+        <div id="section-tradeType" class="hidden p-6 border-t">
+          <div id="content-tradeType"></div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow-xl border-2 border-orange-200 overflow-hidden">
+        <button onclick="toggleSection('symbol')" class="w-full p-6 flex justify-between items-center hover:bg-orange-50 transition">
+          <h3 class="text-xl font-bold text-gray-900">💹 銘柄別分析</h3>
+          <span id="icon-symbol" class="text-2xl">▼</span>
+        </button>
+        <div id="section-symbol" class="hidden p-6 border-t">
+          <div id="content-symbol"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'my-finance:pnl_entries:v3';
+    let entries = [];
+    let filteredEntries = [];
+
+    function init() {
+      loadEntries();
+      setupFilters();
+      applyFilters();
+    }
+
+    function loadEntries() {
+      const data = localStorage.getItem(STORAGE_KEY);
+      if (data) {
+        entries = JSON.parse(data);
+      }
+    }
+
+    function setupFilters() {
+      const categories = [...new Set(entries.map(e => e.category))].filter(c => c);
+      const brokers = [...new Set(entries.map(e => e.brokerAccount))].filter(b => b);
+
+      const categorySelect = document.getElementById('filterCategory');
+      categories.forEach(c => {
+        const option = document.createElement('option');
+        option.value = c;
+        option.textContent = c;
+        categorySelect.appendChild(option);
+      });
+
+      const brokerSelect = document.getElementById('filterBroker');
+      brokers.forEach(b => {
+        const option = document.createElement('option');
+        option.value = b;
+        option.textContent = b;
+        brokerSelect.appendChild(option);
+      });
+    }
+
+    function applyFilters() {
+      const category = document.getElementById('filterCategory').value;
+      const broker = document.getElementById('filterBroker').value;
+      const tradeType = document.getElementById('filterTradeType').value;
+
+      filteredEntries = entries.filter(e => {
+        if (category && e.category !== category) return false;
+        if (broker && e.brokerAccount !== broker) return false;
+        if (tradeType && e.tradeType !== tradeType) return false;
+        return true;
+      });
+
+      document.getElementById('filteredCount').textContent = filteredEntries.length;
+      renderAnalysis();
+    }
+
+    function resetFilters() {
+      document.getElementById('filterCategory').value = '';
+      document.getElementById('filterBroker').value = '';
+      document.getElementById('filterTradeType').value = '';
+      applyFilters();
+    }
+
+    function toggleSection(section) {
+      const content = document.getElementById(`section-${section}`);
+      const icon = document.getElementById(`icon-${section}`);
+      
+      if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        icon.textContent = '▲';
+      } else {
+        content.classList.add('hidden');
+        icon.textContent = '▼';
+      }
+    }
+
+    function renderAnalysis() {
+      renderCategoryAnalysis();
+      renderBrokerAnalysis();
+      renderTradeTypeAnalysis();
+      renderSymbolAnalysis();
+    }
+
+    function renderCategoryAnalysis() {
+      const data = {};
+      filteredEntries.forEach(e => {
+        const cat = e.category || 'その他';
+        if (!data[cat]) data[cat] = { count: 0, pnl: 0, wins: 0 };
+        data[cat].count++;
+        data[cat].pnl += e.pnlJPY || 0;
+        if (e.pnlJPY > 0) data[cat].wins++;
+      });
+
+      const html = Object.keys(data).map(cat => {
+        const { count, pnl, wins } = data[cat];
+        const winRate = count > 0 ? Math.round((wins / count) * 100) : 0;
+        return `
+          <div class="bg-gray-50 rounded-xl p-4 mb-2">
+            <div class="flex justify-between items-center">
+              <span class="font-bold">${cat}</span>
+              <span class="text-sm text-gray-600">${count}件</span>
+            </div>
+            <div class="mt-2">
+              <p class="text-lg font-bold ${pnl >= 0 ? 'text-green-600' : 'text-red-600'}">${fmtJPY(pnl)}</p>
+              <p class="text-sm text-gray-600">勝率: ${winRate}%</p>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('content-category').innerHTML = html || '<p class="text-gray-500">データがありません</p>';
+    }
+
+    function renderBrokerAnalysis() {
+      const data = {};
+      filteredEntries.forEach(e => {
+        const broker = e.brokerAccount || 'その他';
+        if (!data[broker]) data[broker] = { count: 0, pnl: 0, wins: 0 };
+        data[broker].count++;
+        data[broker].pnl += e.pnlJPY || 0;
+        if (e.pnlJPY > 0) data[broker].wins++;
+      });
+
+      const html = Object.keys(data).map(broker => {
+        const { count, pnl, wins } = data[broker];
+        const winRate = count > 0 ? Math.round((wins / count) * 100) : 0;
+        return `
+          <div class="bg-gray-50 rounded-xl p-4 mb-2">
+            <div class="flex justify-between items-center">
+              <span class="font-bold">${broker}</span>
+              <span class="text-sm text-gray-600">${count}件</span>
+            </div>
+            <div class="mt-2">
+              <p class="text-lg font-bold ${pnl >= 0 ? 'text-green-600' : 'text-red-600'}">${fmtJPY(pnl)}</p>
+              <p class="text-sm text-gray-600">勝率: ${winRate}%</p>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('content-broker').innerHTML = html || '<p class="text-gray-500">データがありません</p>';
+    }
+
+    function renderTradeTypeAnalysis() {
+      const data = {};
+      filteredEntries.forEach(e => {
+        const type = e.tradeType || 'その他';
+        if (!data[type]) data[type] = { count: 0, pnl: 0, wins: 0 };
+        data[type].count++;
+        data[type].pnl += e.pnlJPY || 0;
+        if (e.pnlJPY > 0) data[type].wins++;
+      });
+
+      const html = Object.keys(data).map(type => {
+        const { count, pnl, wins } = data[type];
+        const winRate = count > 0 ? Math.round((wins / count) * 100) : 0;
+        return `
+          <div class="bg-gray-50 rounded-xl p-4 mb-2">
+            <div class="flex justify-between items-center">
+              <span class="font-bold">${type}</span>
+              <span class="text-sm text-gray-600">${count}件</span>
+            </div>
+            <div class="mt-2">
+              <p class="text-lg font-bold ${pnl >= 0 ? 'text-green-600' : 'text-red-600'}">${fmtJPY(pnl)}</p>
+              <p class="text-sm text-gray-600">勝率: ${winRate}%</p>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('content-tradeType').innerHTML = html || '<p class="text-gray-500">データがありません</p>';
+    }
+
+    function renderSymbolAnalysis() {
+      const data = {};
+      filteredEntries.forEach(e => {
+        const symbol = e.symbolCode || 'その他';
+        if (!data[symbol]) data[symbol] = { count: 0, pnl: 0, wins: 0 };
+        data[symbol].count++;
+        data[symbol].pnl += e.pnlJPY || 0;
+        if (e.pnlJPY > 0) data[symbol].wins++;
+      });
+
+      // トップ10
+      const top = Object.keys(data)
+        .map(symbol => ({ symbol, ...data[symbol] }))
+        .sort((a, b) => b.pnl - a.pnl)
+        .slice(0, 10);
+
+      const html = top.map(({ symbol, count, pnl, wins }) => {
+        const winRate = count > 0 ? Math.round((wins / count) * 100) : 0;
+        return `
+          <div class="bg-gray-50 rounded-xl p-4 mb-2">
+            <div class="flex justify-between items-center">
+              <span class="font-bold">${symbol}</span>
+              <span class="text-sm text-gray-600">${count}件</span>
+            </div>
+            <div class="mt-2">
+              <p class="text-lg font-bold ${pnl >= 0 ? 'text-green-600' : 'text-red-600'}">${fmtJPY(pnl)}</p>
+              <p class="text-sm text-gray-600">勝率: ${winRate}%</p>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('content-symbol').innerHTML = html || '<p class="text-gray-500">データがありません</p>';
+    }
+
+    function fmtJPY(n) {
+      return `${n >= 0 ? '+' : ''}${n.toLocaleString('ja-JP')}円`;
+    }
+
+    init();
+  </script>
+</body>
+</html>

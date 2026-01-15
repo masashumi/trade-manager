@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🔥 戦略司令塔</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 min-h-screen text-white">
+  <div class="container mx-auto p-4 sm:p-8 max-w-7xl">
+    <!-- ヘッダー -->
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h1 class="text-5xl font-bold bg-gradient-to-r from-yellow-400 via-red-500 to-pink-500 bg-clip-text text-transparent">🔥 戦略司令塔</h1>
+        <p class="text-gray-300 mt-2">迷わず判断するための司令塔</p>
+      </div>
+      <div class="flex gap-2">
+        <a href="index.html" class="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition shadow-lg font-bold">🎯 メイン</a>
+      </div>
+    </div>
+
+    <!-- 💡 今日の結論ボックス -->
+    <div id="conclusionBox" class="mb-8 p-8 rounded-2xl shadow-2xl border-4">
+      <div class="flex items-center gap-6">
+        <div id="conclusionEmoji" class="text-8xl">🟢</div>
+        <div class="flex-1">
+          <h2 class="text-3xl font-bold mb-2" id="conclusionTitle">今日の結論：新規トレードOK</h2>
+          <p class="text-xl text-gray-300 mb-3" id="conclusionReason">理由：期待値プラス・安定稼働中</p>
+          <p class="text-lg font-bold" id="conclusionAction">👉 行動：継続可</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- フィルター（期間選択） -->
+    <div class="flex gap-4 mb-8">
+      <button onclick="setPeriod('month')" id="btn-month" class="px-6 py-3 bg-slate-800 border-2 border-yellow-500 rounded-xl hover:bg-slate-700 font-bold transition text-white">今月</button>
+      <button onclick="setPeriod('year')" id="btn-year" class="px-6 py-3 bg-slate-800 border-2 border-yellow-500 rounded-xl hover:bg-slate-700 font-bold transition text-white">今年</button>
+      <button onclick="setPeriod('all')" id="btn-all" class="px-6 py-3 bg-gradient-to-r from-yellow-500 to-red-500 text-white rounded-xl shadow-lg font-bold">全期間</button>
+    </div>
+
+    <!-- 🧠 セクション1：現在地サマリー -->
+    <div class="mb-8">
+      <h2 class="text-3xl font-bold mb-4 text-yellow-400">🧠 現在地サマリー</h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <!-- 期待値（最優先） -->
+        <div id="card-expectancy" class="bg-slate-800 p-6 rounded-2xl shadow-xl border-2 border-slate-700 relative">
+          <p class="text-sm text-gray-400 mb-1">期待値（平均損益）</p>
+          <p id="expectancy" class="text-3xl font-bold">¥0</p>
+          <p id="expectancyLabel" class="text-sm font-bold mt-2">評価中...</p>
+          <!-- ミニチャート -->
+          <div class="mt-3">
+            <svg id="sparkline-expectancy" width="100%" height="30" class="opacity-60"></svg>
+          </div>
+          <p class="text-xs text-gray-500 mt-2">1回の取引で平均いくら儲かるか（マイナスなら損）。プラスなら継続、マイナスなら停止検討。</p>
+        </div>
+        <!-- リカバリーF -->
+        <div id="card-recoveryFactor" class="bg-slate-800 p-6 rounded-2xl shadow-xl border-2 border-slate-700">
+          <p class="text-sm text-gray-400 mb-1">リカバリーF</p>
+          <p id="recoveryFactor" class="text-3xl font-bold">0.0</p>
+          <p id="recoveryLabel" class="text-sm font-bold mt-2">評価中...</p>
+          <!-- ミニチャート -->
+          <div class="mt-3">
+            <svg id="sparkline-recoveryFactor" width="100%" height="30" class="opacity-60"></svg>
+          </div>
+          <p class="text-xs text-gray-500 mt-2">総損益÷最大DD。DDから回復する力。2.0以上が理想、1.0未満は危険。</p>
+        </div>
+        <!-- 最大DD -->
+        <div id="card-maxDD" class="bg-slate-800 p-6 rounded-2xl shadow-xl border-2 border-slate-700">
+          <p class="text-sm text-gray-400 mb-1">最大DD</p>
+          <p id="maxDD" class="text-3xl font-bold">¥0</p>
+          <p id="maxDDLabel" class="text-sm font-bold mt-2">評価中...</p>
+          <!-- ミニチャート -->
+          <div class="mt-3">
+            <svg id="sparkline-maxDD" width="100%" height="30" class="opacity-60"></svg>
+          </div>
+          <p class="text-xs text-gray-500 mt-2">ドローダウン：累積損益の最高値からの最大下落幅。精神的・資金的ダメージの大きさ。</p>
+        </div>
+        <!-- プロフィットF -->
+        <div id="card-profitFactor" class="bg-slate-800 p-6 rounded-2xl shadow-xl border-2 border-slate-700">
+          <p class="text-sm text-gray-400 mb-1">プロフィットF</p>
+          <p id="profitFactor" class="text-3xl font-bold">0.0</p>
+          <p id="profitLabel" class="text-sm font-bold mt-2">評価中...</p>
+          <!-- ミニチャート -->
+          <div class="mt-3">
+            <svg id="sparkline-profitFactor" width="100%" height="30" class="opacity-60"></svg>
+          </div>
+          <p class="text-xs text-gray-500 mt-2">総利益÷総損失。1.0以上で黒字、1.5以上が理想。損失に対してどれだけ利益を出せているか。</p>
+        </div>
+        <!-- 勝率 -->
+        <div id="card-winRate" class="bg-slate-800 p-6 rounded-2xl shadow-xl border-2 border-slate-700">
+          <p class="text-sm text-gray-400 mb-1">勝率</p>
+          <p id="winRate" class="text-3xl font-bold">0%</p>
+          <p id="winRateLabel" class="text-sm font-bold mt-2">評価中...</p>
+          <!-- ミニチャート -->
+          <div class="mt-3">
+            <svg id="sparkline-winRate" width="100%" height="30" class="opacity-60"></svg>
+          </div>
+          <p class="text-xs text-gray-500 mt-2">プラス取引の割合。50%以上が目安。ただし期待値の方が重要。</p>
+        </div>
+        <!-- 最大連敗 -->
+        <div id="card-maxLoseStreak" class="bg-slate-800 p-6 rounded-2xl shadow-xl border-2 border-slate-700">
+          <p class="text-sm text-gray-400 mb-1">最大連敗</p>
+          <p id="maxLoseStreak" class="text-3xl font-bold">0回</p>
+          <p id="loseStreakLabel" class="text-sm font-bold mt-2">評価中...</p>
+          <!-- ミニチャート -->
+          <div class="mt-3">
+            <svg id="sparkline-maxLoseStreak" width="100%" height="30" class="opacity-60"></svg>
+          </div>
+          <p class="text-xs text-gray-500 mt-2">負けが連続した最大回数。精神的負担とDD拡大のリスク指標。10回以内が望ましい。</p>
+        </div>
+        <!-- 月次損益SD -->
+        <div id="card-stability" class="bg-slate-800 p-6 rounded-2xl shadow-xl border-2 border-slate-700">
+          <p class="text-sm text-gray-400 mb-1">月次損益SD</p>
+          <p id="stability" class="text-3xl font-bold">¥0</p>
+          <p id="stabilityLabel" class="text-sm font-bold mt-2">評価中...</p>
+          <!-- ミニチャート -->
+          <div class="mt-3">
+            <svg id="sparkline-stability" width="100%" height="30" class="opacity-60"></svg>
+          </div>
+          <p class="text-xs text-gray-500 mt-2">標準偏差：月ごとの損益のブレ幅。小さいほど安定。大きいと浮き沈みが激しい。</p>
+        </div>
+        <!-- 総損益 -->
+        <div id="card-totalPnL" class="bg-slate-800 p-6 rounded-2xl shadow-xl border-2 border-slate-700">
+          <p class="text-sm text-gray-400 mb-1">総損益</p>
+          <p id="totalPnL" class="text-3xl font-bold">¥0</p>
+          <p id="totalPnLUSDT" class="text-xl font-bold text-cyan-300 mt-1"></p>
+          <!-- ミニチャート -->
+          <div class="mt-3">
+            <svg id="sparkline-totalPnL" width="100%" height="30" class="opacity-60"></svg>
+          </div>
+          <p class="text-xs text-gray-500 mt-2">全取引の損益合計。参考値。期待値や安定性の方が重要。</p>
+        </div>
+      </div>
+      
+      <!-- 💡 直近トレンド（ミニカード） -->
+      <div class="mt-6 p-4 bg-gradient-to-r from-purple-900 to-blue-900 rounded-2xl shadow-xl border-2 border-purple-500">
+        <h3 class="text-xl font-bold mb-3 text-purple-300">💡 直近トレンド（今の判断用）</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="bg-slate-800 p-3 rounded-xl">
+            <p class="text-xs text-gray-400 mb-1">直近30件 期待値</p>
+            <p id="recent30Expectancy" class="text-xl font-bold">¥0</p>
+            <p id="recent30Label" class="text-xs font-bold mt-1">評価中...</p>
+          </div>
+          <div class="bg-slate-800 p-3 rounded-xl">
+            <p class="text-xs text-gray-400 mb-1">直近100件 期待値</p>
+            <p id="recent100Expectancy" class="text-xl font-bold">¥0</p>
+            <p id="recent100Label" class="text-xs font-bold mt-1">評価中...</p>
+          </div>
+          <div class="bg-slate-800 p-3 rounded-xl">
+            <p class="text-xs text-gray-400 mb-1">直近30件 勝率</p>
+            <p id="recent30WinRate" class="text-xl font-bold">0%</p>
+          </div>
+          <div class="bg-slate-800 p-3 rounded-xl">
+            <p class="text-xs text-gray-400 mb-1">直近100件 勝率</p>
+            <p id="recent100WinRate" class="text-xl font-bold">0%</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 🚦 セクション2：戦略ステータス自動判定 -->
+    <div class="mb-8">
+      <h2 class="text-3xl font-bold mb-4 text-yellow-400">🚦 戦略ステータス</h2>
+      
+      <!-- 全体ステータス -->
+      <div class="mb-4">
+        <h3 class="text-xl font-bold mb-2 text-gray-300">全体</h3>
+        <div id="strategyStatusOverall" class="bg-slate-800 p-8 rounded-2xl shadow-xl border-4 border-slate-700">
+          <div class="flex items-center gap-6">
+            <div id="overallEmoji" class="text-7xl">🟢</div>
+            <div class="flex-1">
+              <div id="overallLabel" class="text-3xl font-bold mb-2 text-green-500">正常運転</div>
+              <div id="overallReason" class="text-lg text-gray-300 mb-2">理由：期待値プラス・安定稼働中</div>
+              <div id="overallAction" class="text-lg font-bold text-yellow-400">👉 行動：継続可</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ⚠️ 主犯カテゴリ警告カード -->
+      <div id="culpritWarning" class="mb-4 hidden">
+        <h3 class="text-xl font-bold mb-2 text-red-400">⚠️ 主犯カテゴリ検出</h3>
+        <div class="bg-red-900 bg-opacity-30 p-6 rounded-2xl shadow-xl border-4 border-red-500">
+          <div id="culpritContent">
+            <!-- JavaScriptで動的生成 -->
+          </div>
+        </div>
+      </div>
+
+      <!-- カテゴリ別ステータス -->
+      <div>
+        <h3 class="text-xl font-bold mb-2 text-gray-300">カテゴリ別</h3>
+        <div id="strategyStatusByCategory" class="grid grid-cols-3 md:grid-cols-6 lg:grid-cols-8 gap-2">
+          <!-- JavaScriptで動的生成 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 📊 セクション3：削るための原因分析 -->
+    <div class="mb-8">
+      <h2 class="text-3xl font-bold mb-4 text-yellow-400">📊 削るための原因分析</h2>
+      
+      <!-- 🎯 削減シミュレーション -->
+      <div class="mb-6 p-6 bg-slate-800 rounded-2xl shadow-xl border-2 border-purple-500">
+        <h3 class="text-xl font-bold mb-3 text-purple-400">🎯 削減シミュレーション</h3>
+        <p class="text-sm text-gray-400 mb-4">除外したいカテゴリをチェックして、影響を確認できます</p>
+        <div id="simulationCheckboxes" class="flex flex-wrap gap-3 mb-4">
+          <!-- JavaScriptで動的生成 -->
+        </div>
+        <div id="simulationResult" class="grid grid-cols-3 gap-4 mt-4 hidden">
+          <div class="bg-slate-700 p-4 rounded-xl">
+            <p class="text-sm text-gray-400">期待値変化</p>
+            <p id="simExpectancy" class="text-2xl font-bold text-green-400">--</p>
+            <p class="text-xs text-gray-500 mt-1">1回の取引の平均損益</p>
+          </div>
+          <div class="bg-slate-700 p-4 rounded-xl">
+            <p class="text-sm text-gray-400">最大DD変化</p>
+            <p id="simMaxDD" class="text-2xl font-bold text-blue-400">--</p>
+            <p class="text-xs text-gray-500 mt-1">最大下落幅</p>
+          </div>
+          <div class="bg-slate-700 p-4 rounded-xl">
+            <p class="text-sm text-gray-400">プロフィットF変化</p>
+            <p id="simPF" class="text-2xl font-bold text-yellow-400">--</p>
+            <p class="text-xs text-gray-500 mt-1">総利益÷総損失（1.0以上で黒字）</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- タブ -->
+      <div class="flex gap-2 mb-4">
+        <button onclick="setAnalysisTab('category')" id="tab-category" class="px-6 py-3 bg-gradient-to-r from-yellow-500 to-red-500 text-white rounded-xl shadow-lg font-bold">カテゴリ別</button>
+        <button onclick="setAnalysisTab('symbol')" id="tab-symbol" class="px-6 py-3 bg-slate-800 border-2 border-slate-700 rounded-xl hover:bg-slate-700 font-bold">銘柄別</button>
+        <button onclick="setAnalysisTab('broker')" id="tab-broker" class="px-6 py-3 bg-slate-800 border-2 border-slate-700 rounded-xl hover:bg-slate-700 font-bold">証券会社別</button>
+        <button onclick="setAnalysisTab('tradeType')" id="tab-tradeType" class="px-6 py-3 bg-slate-800 border-2 border-slate-700 rounded-xl hover:bg-slate-700 font-bold">売買形態別</button>
+      </div>
+
+      <!-- コンテンツ -->
+      <div id="analysisContent" class="bg-slate-800 p-6 rounded-2xl shadow-xl border-2 border-slate-700">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left">
+            <thead class="border-b-2 border-slate-600">
+              <tr>
+                <th class="px-4 py-3">名前</th>
+                <th class="px-4 py-3 text-right">件数</th>
+                <th class="px-4 py-3 text-right">総損益</th>
+                <th class="px-4 py-3 text-right">期待値</th>
+                <th class="px-4 py-3 text-right">勝率</th>
+                <th class="px-4 py-3 text-right">最大DD</th>
+                <th class="px-4 py-3 text-right">損失寄与率</th>
+              </tr>
+            </thead>
+            <tbody id="analysisTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 📈 グラフセクション -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+      <!-- 月次推移 -->
+      <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border-2 border-slate-700">
+        <h3 class="text-2xl font-bold mb-4 text-yellow-400">月次推移</h3>
+        <canvas id="monthlyChart"></canvas>
+      </div>
+      <!-- 累積損益 -->
+      <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border-2 border-slate-700">
+        <h3 class="text-2xl font-bold mb-4 text-yellow-400">累積損益</h3>
+        <canvas id="cumulativeChart"></canvas>
+      </div>
+    </div>
+    
+    <!-- 📉 ドローダウン推移グラフ（独立） -->
+    <div class="mb-8">
+      <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border-2 border-red-500">
+        <h3 class="text-2xl font-bold mb-2 text-red-400">📉 ドローダウン推移（DD拡大中？底打ち？回復中？）</h3>
+        <p class="text-sm text-gray-400 mb-4">累積損益の最高値からの下落幅を時系列で表示。0に近いほど健全。拡大中なら新規禁止、横ばい〜回復なら継続検討。</p>
+        <canvas id="drawdownChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'my-finance:pnl_entries:v3';
+    let entries = [];
+    let currentPeriod = 'all';
+    let currentAnalysisTab = 'category';
+
+    // 初期化
+    function init() {
+      loadEntries();
+      renderAll();
+    }
+
+    // データ読み込み
+    function loadEntries() {
+      const data = localStorage.getItem(STORAGE_KEY);
+      if (data) {
+        const parsed = JSON.parse(data);
+        entries = Array.isArray(parsed) ? parsed : (parsed.entries || []);
+        entries.sort((a, b) => a.date.localeCompare(b.date));
+      }
+      console.log('📊 データ読み込み完了:', entries.length, '件');
+    }
+
+    // 期間設定
+    function setPeriod(period) {
+      currentPeriod = period;
+      ['month', 'year', 'all'].forEach(p => {
+        const btn = document.getElementById(`btn-${p}`);
+        if (p === period) {
+          btn.className = 'px-6 py-3 bg-gradient-to-r from-yellow-500 to-red-500 text-white rounded-xl shadow-lg font-bold';
+        } else {
+          btn.className = 'px-6 py-3 bg-slate-800 border-2 border-yellow-500 rounded-xl hover:bg-slate-700 font-bold transition text-white';
+        }
+      });
+      renderAll();
+    }
+
+    // フィルター済みエントリ取得
+    function getFilteredEntries() {
+      const now = new Date();
+      if (currentPeriod === 'month') {
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+        return entries.filter(e => e.date >= startOfMonth);
+      } else if (currentPeriod === 'year') {
+        const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+        return entries.filter(e => e.date >= startOfYear);
+      }
+      return entries;
+    }
+
+    // 全体レンダリング
+    function renderAll() {
+      renderSummary();
+      renderStrategyStatus();
+      renderAnalysis();
+      renderCharts();
+    }
+
+    // 🧠 サマリーレンダリング
+    function renderSummary() {
+      const filtered = getFilteredEntries();
+      
+      // 直近トレンド計算（新規追加）
+      renderRecentTrend(filtered);
+      
+      // 基本指標（JPY/USDT）
+      const totalPnL = filtered.reduce((sum, e) => sum + (e.pnlJPY || 0), 0);
+      const totalPnLUSDT = filtered.reduce((sum, e) => sum + (e.pnlUSDT || 0), 0);
+      const wins = filtered.filter(e => e.pnlJPY > 0).length;
+      const losses = filtered.filter(e => e.pnlJPY < 0).length;
+      const winRate = filtered.length > 0 ? (wins / filtered.length) * 100 : 0;
+      const expectancy = filtered.length > 0 ? totalPnL / filtered.length : 0;
+
+      // 最大DD
+      let maxDD = 0;
+      let cumulative = 0;
+      let peak = 0;
+      filtered.forEach(e => {
+        cumulative += e.pnlJPY || 0;
+        if (cumulative > peak) peak = cumulative;
+        const dd = peak - cumulative;
+        if (dd > maxDD) maxDD = dd;
+      });
+
+      // リカバリーファクター
+      const recoveryFactor = maxDD > 0 ? totalPnL / maxDD : 0;
+
+      // プロフィットファクター
+      const totalWins = filtered.filter(e => e.pnlJPY > 0).reduce((sum, e) => sum + e.pnlJPY, 0);
+      const totalLosses = Math.abs(filtered.filter(e => e.pnlJPY < 0).reduce((sum, e) => sum + e.pnlJPY, 0));
+      const profitFactor = totalLosses > 0 ? totalWins / totalLosses : 0;
+
+      // 最大連敗
+      let maxLoseStreak = 0;
+      let currentStreak = 0;
+      filtered.forEach(e => {
+        if (e.pnlJPY < 0) {
+          currentStreak++;
+          if (currentStreak > maxLoseStreak) maxLoseStreak = currentStreak;
+        } else {
+          currentStreak = 0;
+        }
+      });
+
+      // 月次標準偏差
+      const monthlyData = {};
+      filtered.forEach(e => {
+        const month = e.date.substring(0, 7);
+        if (!monthlyData[month]) monthlyData[month] = 0;
+        monthlyData[month] += e.pnlJPY || 0;
+      });
+      const monthlyValues = Object.values(monthlyData);
+      const monthlyAvg = monthlyValues.length > 0 ? monthlyValues.reduce((a, b) => a + b, 0) / monthlyValues.length : 0;
+      const monthlySD = monthlyValues.length > 0 
+        ? Math.sqrt(monthlyValues.reduce((sum, val) => sum + Math.pow(val - monthlyAvg, 2), 0) / monthlyValues.length)
+        : 0;
+
+      // 表示更新
+      document.getElementById('totalPnL').textContent = fmtJPY(totalPnL);
+      document.getElementById('totalPnLUSDT').textContent = Number.isFinite(totalPnLUSDT) ? `(${fmtUSDT(totalPnLUSDT)})` : '';
+      document.getElementById('winRate').textContent = `${winRate.toFixed(1)}%`;
+      document.getElementById('expectancy').textContent = fmtJPY2(Math.round(expectancy));
+      document.getElementById('maxDD').textContent = fmtJPY2(Math.round(-maxDD));
+      document.getElementById('recoveryFactor').textContent = recoveryFactor.toFixed(2);
+      document.getElementById('profitFactor').textContent = profitFactor.toFixed(2);
+      document.getElementById('maxLoseStreak').textContent = `${maxLoseStreak}回`;
+      document.getElementById('stability').textContent = fmtJPY2(Math.round(monthlySD));
+
+      // 評価判定＋ラベル表示＋色分け
+      const metrics = [
+        { id: 'expectancy', labelId: 'expectancyLabel', value: expectancy, good: expectancy >= 0, label: expectancy >= 0 ? '✅ OK' : '❌ 危険' },
+        { id: 'recoveryFactor', labelId: 'recoveryLabel', value: recoveryFactor, good: recoveryFactor >= 2, label: recoveryFactor >= 2 ? '✅ OK' : (recoveryFactor >= 1 ? '⚠️ 注意' : '❌ 危険') },
+        { id: 'maxDD', labelId: 'maxDDLabel', value: -maxDD, good: maxDD <= Math.abs(totalPnL * 0.3), label: maxDD <= Math.abs(totalPnL * 0.3) ? '✅ OK' : '⚠️ 注意' },
+        { id: 'profitFactor', labelId: 'profitLabel', value: profitFactor, good: profitFactor >= 1.5, label: profitFactor >= 1.5 ? '✅ OK' : (profitFactor >= 1.0 ? '⚠️ 注意' : '❌ 危険') },
+        { id: 'winRate', labelId: 'winRateLabel', value: winRate, good: winRate >= 50, label: winRate >= 50 ? '✅ OK' : '⚠️ 注意' },
+        { id: 'maxLoseStreak', labelId: 'loseStreakLabel', value: maxLoseStreak, good: maxLoseStreak <= 5, label: maxLoseStreak <= 5 ? '✅ OK' : '⚠️ 注意' },
+        { id: 'stability', labelId: 'stabilityLabel', value: monthlySD, good: monthlySD <= Math.abs(monthlyAvg * 0.5), label: monthlySD <= Math.abs(monthlyAvg * 0.5) ? '✅ OK' : '⚠️ 注意' }
+      ];
+
+      let worstMetric = null;
+      metrics.forEach(m => {
+        document.getElementById(m.labelId).textContent = m.label;
+        document.getElementById(m.labelId).className = `text-sm font-bold mt-2 ${m.good ? 'text-green-400' : 'text-red-400'}`;
+        colorizeCard(`card-${m.id}`, m.good);
+        if (!m.good && (!worstMetric || !worstMetric.good)) {
+          if (!worstMetric || m.id === 'expectancy' || (worstMetric.id !== 'expectancy' && m.id === 'recoveryFactor')) {
+            worstMetric = m;
+          }
+        }
+      });
+
+      // 最悪指標を強調
+      if (worstMetric) {
+        document.getElementById(`card-${worstMetric.id}`).className = 'bg-slate-800 p-6 rounded-2xl shadow-2xl border-4 border-red-600 animate-pulse';
+      }
+
+      // 💡 今日の結論ボックス更新
+      renderConclusionBox(expectancy, maxDD, totalPnL, profitFactor, maxLoseStreak);
+      
+      // 📊 スパークライン描画（過去10日トレンド）
+      renderSparklines(filtered);
+    }
+    
+    // 💡 直近トレンド描画（新規関数）
+    function renderRecentTrend(filtered) {
+      // 日付順に並び替え（新しい順）
+      const sorted = [...filtered].sort((a, b) => b.date.localeCompare(a.date));
+      
+      // 直近30件
+      const recent30 = sorted.slice(0, 30);
+      const recent30Total = recent30.reduce((sum, e) => sum + (e.pnlJPY || 0), 0);
+      const recent30Expectancy = recent30.length > 0 ? recent30Total / recent30.length : 0;
+      const recent30Wins = recent30.filter(e => e.pnlJPY > 0).length;
+      const recent30WinRate = recent30.length > 0 ? (recent30Wins / recent30.length) * 100 : 0;
+      
+      // 直近100件
+      const recent100 = sorted.slice(0, 100);
+      const recent100Total = recent100.reduce((sum, e) => sum + (e.pnlJPY || 0), 0);
+      const recent100Expectancy = recent100.length > 0 ? recent100Total / recent100.length : 0;
+      const recent100Wins = recent100.filter(e => e.pnlJPY > 0).length;
+      const recent100WinRate = recent100.length > 0 ? (recent100Wins / recent100.length) * 100 : 0;
+      
+      // 表示
+      document.getElementById('recent30Expectancy').textContent = fmtJPY2(Math.round(recent30Expectancy));
+      document.getElementById('recent30Label').textContent = recent30Expectancy >= 0 ? '🟢 OK' : '🔴 危険';
+      document.getElementById('recent30Label').className = `text-xs font-bold mt-1 ${recent30Expectancy >= 0 ? 'text-green-400' : 'text-red-400'}`;
+      
+      document.getElementById('recent100Expectancy').textContent = fmtJPY2(Math.round(recent100Expectancy));
+      document.getElementById('recent100Label').textContent = recent100Expectancy >= 0 ? '🟢 OK' : '🔴 危険';
+      document.getElementById('recent100Label').className = `text-xs font-bold mt-1 ${recent100Expectancy >= 0 ? 'text-green-400' : 'text-red-400'}`;
+      
+      document.getElementById('recent30WinRate').textContent = `${recent30WinRate.toFixed(1)}%`;
+      document.getElementById('recent100WinRate').textContent = `${recent100WinRate.toFixed(1)}%`;
+    }
+    
+    // 📊 スパークライン描画（各カード用ミニチャート）
+    function renderSparklines(filtered) {
+      if (filtered.length === 0) return;
+      
+      // 日付でグループ化（直近10日分）
+      const dateGroups = {};
+      const sorted = [...filtered].sort((a, b) => b.date.localeCompare(a.date));
+      const uniqueDates = [...new Set(sorted.map(e => e.date))].slice(0, 10).reverse(); // 古い順
+      
+      uniqueDates.forEach(date => {
+        const dayEntries = sorted.filter(e => e.date === date);
+        dateGroups[date] = dayEntries;
+      });
+      
+      // 各指標ごとにスパークラインデータを計算
+      const sparklineData = {
+        expectancy: [],
+        recoveryFactor: [],
+        maxDD: [],
+        profitFactor: [],
+        winRate: [],
+        maxLoseStreak: [],
+        stability: [],
+        totalPnL: []
+      };
+      
+      let cumulative = 0;
+      let peak = 0;
+      
+      uniqueDates.forEach(date => {
+        const dayEntries = dateGroups[date];
+        const dayTotal = dayEntries.reduce((sum, e) => sum + (e.pnlJPY || 0), 0);
+        const dayExpectancy = dayEntries.length > 0 ? dayTotal / dayEntries.length : 0;
+        const dayWins = dayEntries.filter(e => e.pnlJPY > 0).length;
+        const dayWinRate = dayEntries.length > 0 ? (dayWins / dayEntries.length) * 100 : 0;
+        
+        // 累積損益更新
+        cumulative += dayTotal;
+        if (cumulative > peak) peak = cumulative;
+        const dd = peak - cumulative;
+        
+        // プロフィットファクター
+        const dayTotalWins = dayEntries.filter(e => e.pnlJPY > 0).reduce((sum, e) => sum + e.pnlJPY, 0);
+        const dayTotalLosses = Math.abs(dayEntries.filter(e => e.pnlJPY < 0).reduce((sum, e) => sum + e.pnlJPY, 0));
+        const dayPF = dayTotalLosses > 0 ? dayTotalWins / dayTotalLosses : 0;
+        
+        // リカバリーファクター
+        const dayRF = dd > 0 ? cumulative / dd : 0;
+        
+        // 連敗カウント（その日まで）
+        let streakCount = 0;
+        for (let i = dayEntries.length - 1; i >= 0; i--) {
+          if (dayEntries[i].pnlJPY < 0) streakCount++;
+          else break;
+        }
+        
+        sparklineData.expectancy.push(dayExpectancy);
+        sparklineData.recoveryFactor.push(dayRF);
+        sparklineData.maxDD.push(-dd);
+        sparklineData.profitFactor.push(dayPF);
+        sparklineData.winRate.push(dayWinRate);
+        sparklineData.maxLoseStreak.push(streakCount);
+        sparklineData.stability.push(dayTotal);
+        sparklineData.totalPnL.push(cumulative);
+      });
+      
+      // SVGスパークライン描画
+      drawSparkline('sparkline-expectancy', sparklineData.expectancy);
+      drawSparkline('sparkline-recoveryFactor', sparklineData.recoveryFactor);
+      drawSparkline('sparkline-maxDD', sparklineData.maxDD);
+      drawSparkline('sparkline-profitFactor', sparklineData.profitFactor);
+      drawSparkline('sparkline-winRate', sparklineData.winRate);
+      drawSparkline('sparkline-maxLoseStreak', sparklineData.maxLoseStreak);
+      drawSparkline('sparkline-stability', sparklineData.stability);
+      drawSparkline('sparkline-totalPnL', sparklineData.totalPnL);
+    }
+    
+    // SVGスパークライン描画関数
+    function drawSparkline(svgId, data) {
+      const svg = document.getElementById(svgId);
+      if (!svg || data.length === 0) return;
+      
+      const width = svg.clientWidth || 200;
+      const height = 30;
+      const padding = 2;
+      
+      const minVal = Math.min(...data);
+      const maxVal = Math.max(...data);
+      const range = maxVal - minVal || 1;
+      
+      // ポイント生成
+      const points = data.map((val, i) => {
+        const x = padding + (i / (data.length - 1 || 1)) * (width - padding * 2);
+        const y = height - padding - ((val - minVal) / range) * (height - padding * 2);
+        return `${x},${y}`;
+      }).join(' ');
+      
+      // 色判定（最後の値が正か負か）
+      const lastVal = data[data.length - 1];
+      const color = lastVal >= 0 ? 'rgba(34, 197, 94, 0.8)' : 'rgba(239, 68, 68, 0.8)';
+      
+      svg.innerHTML = `
+        <polyline 
+          points="${points}" 
+          fill="none" 
+          stroke="${color}" 
+          stroke-width="2" 
+          stroke-linecap="round" 
+          stroke-linejoin="round"
+        />
+      `;
+    }
+
+    // カード色分け
+    function colorizeCard(cardId, isGood) {
+      const card = document.getElementById(cardId);
+      if (isGood) {
+        card.className = 'bg-slate-800 p-6 rounded-2xl shadow-xl border-2 border-green-500';
+      } else {
+        card.className = 'bg-slate-800 p-6 rounded-2xl shadow-xl border-2 border-red-500';
+      }
+    }
+
+    // 💡 今日の結論ボックス描画
+    function renderConclusionBox(expectancy, maxDD, totalPnL, profitFactor, maxLoseStreak) {
+      const box = document.getElementById('conclusionBox');
+      const emoji = document.getElementById('conclusionEmoji');
+      const title = document.getElementById('conclusionTitle');
+      const reason = document.getElementById('conclusionReason');
+      const action = document.getElementById('conclusionAction');
+
+      if (expectancy < 0 || (totalPnL < 0 && maxDD > Math.abs(totalPnL * 0.5))) {
+        // 🔴 停止検討
+        box.className = 'mb-8 p-8 rounded-2xl shadow-2xl border-4 border-red-600 bg-red-900 bg-opacity-30';
+        emoji.textContent = '🔴';
+        title.textContent = '今日の結論：新規トレード禁止';
+        reason.textContent = `理由：期待値マイナス（${fmtJPY2(Math.round(expectancy))}）／深刻なDD`;
+        action.textContent = '👉 行動：新規エントリー禁止／対象削減を検討';
+      } else if (expectancy > 0 && (maxLoseStreak > 5 || maxDD > Math.abs(totalPnL * 0.3))) {
+        // 🟡 注意
+        box.className = 'mb-8 p-8 rounded-2xl shadow-2xl border-4 border-yellow-500 bg-yellow-900 bg-opacity-20';
+        emoji.textContent = '🟡';
+        title.textContent = '今日の結論：慎重にトレード';
+        reason.textContent = `理由：期待値は正（${fmtJPY2(Math.round(expectancy))}）だが不安定要素あり`;
+        action.textContent = '👉 行動：ロット縮小／件数制限を推奨';
+      } else {
+        // 🟢 正常運転
+        box.className = 'mb-8 p-8 rounded-2xl shadow-2xl border-4 border-green-500 bg-green-900 bg-opacity-20';
+        emoji.textContent = '🟢';
+        title.textContent = '今日の結論：新規トレードOK';
+        reason.textContent = `理由：期待値プラス（${fmtJPY2(Math.round(expectancy))}）・安定稼働中`;
+        action.textContent = '👉 行動：継続可';
+      }
+    }
+
+    // 🚦 戦略ステータス判定（共通関数）
+    function judgeStatus(entries) {
+      if (!entries || entries.length === 0) {
+        return { emoji: '⚪', label: 'データなし', color: 'gray', reason: '取引データがありません', action: 'データを追加してください' };
+      }
+
+      const totalPnL = entries.reduce((sum, e) => sum + (e.pnlJPY || 0), 0);
+      const expectancy = totalPnL / entries.length;
+      
+      // 最大DD
+      let maxDD = 0;
+      let cumulative = 0;
+      let peak = 0;
+      entries.forEach(e => {
+        cumulative += e.pnlJPY || 0;
+        if (cumulative > peak) peak = cumulative;
+        const dd = peak - cumulative;
+        if (dd > maxDD) maxDD = dd;
+      });
+
+      // 最大連敗
+      let maxLoseStreak = 0;
+      let currentStreak = 0;
+      entries.forEach(e => {
+        if (e.pnlJPY < 0) {
+          currentStreak++;
+          if (currentStreak > maxLoseStreak) maxLoseStreak = currentStreak;
+        } else {
+          currentStreak = 0;
+        }
+      });
+      
+      // 判定ロジック（期待値を最優先）
+      // 🔴 停止検討：期待値がマイナス
+      if (expectancy < 0) {
+        return { 
+          emoji: '🔴', 
+          label: '停止検討', 
+          color: 'red', 
+          reason: `期待値マイナス（${fmtJPY2(Math.round(expectancy))}）`,
+          action: '新規エントリー禁止／対象削減'
+        };
+      }
+      // 🟡 注意：期待値は正だが小さい、または不安定
+      else if (expectancy > 0 && expectancy < 500) {
+        return { 
+          emoji: '🟡', 
+          label: '注意', 
+          color: 'yellow', 
+          reason: `期待値が低い（${fmtJPY2(Math.round(expectancy))}）`,
+          action: 'ロット縮小／件数制限'
+        };
+      }
+      // 🟡 注意：期待値は良いが連敗やDDが大きい
+      else if (expectancy >= 500 && (maxLoseStreak > 10 || maxDD > Math.abs(totalPnL * 0.5))) {
+        return { 
+          emoji: '🟡', 
+          label: '注意', 
+          color: 'yellow', 
+          reason: '期待値は正だが不安定要素あり',
+          action: 'ロット縮小／リスク管理強化'
+        };
+      }
+      // 🟢 正常運転：期待値が十分にプラス
+      else {
+        return { 
+          emoji: '🟢', 
+          label: '正常運転', 
+          color: 'green', 
+          reason: `期待値プラス（${fmtJPY2(Math.round(expectancy))}）・安定稼働中`,
+          action: '継続可'
+        };
+      }
+    }
+
+    // 🚦 戦略ステータス描画
+    function renderStrategyStatus() {
+      const filtered = getFilteredEntries();
+      
+      // 全体ステータス
+      const overallStatus = judgeStatus(filtered);
+      document.getElementById('overallEmoji').textContent = overallStatus.emoji;
+      document.getElementById('overallLabel').textContent = overallStatus.label;
+      document.getElementById('overallLabel').className = `text-3xl font-bold mb-2 text-${overallStatus.color}-500`;
+      document.getElementById('overallReason').textContent = `理由：${overallStatus.reason}`;
+      document.getElementById('overallAction').textContent = `👉 行動：${overallStatus.action}`;
+      document.getElementById('strategyStatusOverall').className = `bg-slate-800 p-8 rounded-2xl shadow-xl border-4 border-${overallStatus.color}-500`;
+
+      // カテゴリ別データ集計
+      const categoryData = {};
+      filtered.forEach(e => {
+        const cat = e.category || '未分類';
+        if (!categoryData[cat]) categoryData[cat] = [];
+        categoryData[cat].push(e);
+      });
+
+      // 主犯カテゴリ検出（損失寄与率30%以上＋期待値マイナス）
+      const totalLoss = Math.abs(filtered.filter(e => e.pnlJPY < 0).reduce((sum, e) => sum + e.pnlJPY, 0));
+      const overallExpectancy = filtered.length > 0 ? filtered.reduce((sum, e) => sum + (e.pnlJPY || 0), 0) / filtered.length : 0;
+      let culprit = null;
+      Object.keys(categoryData).forEach(cat => {
+        const catEntries = categoryData[cat];
+        const catLoss = Math.abs(catEntries.filter(e => e.pnlJPY < 0).reduce((sum, e) => sum + e.pnlJPY, 0));
+        const catTotalPnL = catEntries.reduce((sum, e) => sum + (e.pnlJPY || 0), 0);
+        const catExpectancy = catTotalPnL / catEntries.length;
+        const lossRatio = totalLoss > 0 ? (catLoss / totalLoss) * 100 : 0;
+        
+        // 期待値マイナス＋損失寄与率30%以上を主犯とする
+        if (catExpectancy < 0 && lossRatio >= 30 && (!culprit || lossRatio > culprit.lossRatio)) {
+          // このカテゴリを除外した場合の期待値を計算
+          const remainingEntries = filtered.filter(e => (e.category || '未分類') !== cat);
+          const newExpectancy = remainingEntries.length > 0 ? remainingEntries.reduce((sum, e) => sum + (e.pnlJPY || 0), 0) / remainingEntries.length : 0;
+          const improvement = newExpectancy - overallExpectancy;
+          
+          culprit = { cat, lossRatio, catExpectancy, catTotalPnL, count: catEntries.length, improvement, newExpectancy };
+        }
+      });
+
+      // 主犯カテゴリ警告表示
+      const culpritWarning = document.getElementById('culpritWarning');
+      if (culprit) {
+        culpritWarning.className = 'mb-4';
+        document.getElementById('culpritContent').innerHTML = `
+          <div class="flex items-center gap-6">
+            <div class="text-7xl">⚠️</div>
+            <div class="flex-1">
+              <h4 class="text-2xl font-bold text-red-400 mb-2">${culprit.cat} が主犯</h4>
+              <div class="grid grid-cols-2 gap-4 text-white">
+                <div>
+                  <p class="text-sm text-gray-400">全体損失に占める割合</p>
+                  <p class="text-3xl font-bold text-red-400">${culprit.lossRatio.toFixed(1)}%</p>
+                </div>
+                <div>
+                  <p class="text-sm text-gray-400">期待値（1回あたり）</p>
+                  <p class="text-3xl font-bold text-red-400">${fmtJPY2(Math.round(culprit.catExpectancy))}</p>
+                </div>
+                <div>
+                  <p class="text-sm text-gray-400">総損益</p>
+                  <p class="text-2xl font-bold">${fmtJPY(culprit.catTotalPnL)}</p>
+                </div>
+                <div>
+                  <p class="text-sm text-gray-400">件数</p>
+                  <p class="text-2xl font-bold">${culprit.count}件</p>
+                </div>
+              </div>
+              <div class="mt-4 p-4 bg-yellow-900 bg-opacity-30 rounded-xl border-2 border-yellow-500">
+                <p class="text-lg font-bold text-yellow-400 mb-2">💡 ${culprit.cat}を停止した場合の改善予測</p>
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <p class="text-sm text-gray-400">現在の期待値</p>
+                    <p class="text-xl font-bold text-red-400">${fmtJPY2(Math.round(overallExpectancy))}</p>
+                  </div>
+                  <div>
+                    <p class="text-sm text-gray-400">停止後の期待値</p>
+                    <p class="text-xl font-bold text-green-400">${fmtJPY2(Math.round(culprit.newExpectancy))}</p>
+                  </div>
+                </div>
+                <p class="text-center text-2xl font-bold text-green-400 mt-2">👉 期待値 ${fmtJPY2(Math.round(culprit.improvement))} 改善！</p>
+              </div>
+            </div>
+          </div>
+        `;
+      } else {
+        culpritWarning.className = 'mb-4 hidden';
+      }
+
+      // カテゴリ別ステータス
+      const categoryDiv = document.getElementById('strategyStatusByCategory');
+      categoryDiv.innerHTML = '';
+      Object.keys(categoryData).sort().forEach(cat => {
+        const status = judgeStatus(categoryData[cat]);
+        const card = document.createElement('div');
+        card.className = `bg-slate-800 p-2 rounded-md shadow-sm border border-${status.color}-500 text-center`;
+        card.innerHTML = `
+          <div class="text-xl mb-0.5">${status.emoji}</div>
+          <div class="text-xs font-bold truncate" title="${cat}">${cat}</div>
+          <div class="text-xs text-${status.color}-400 font-bold">${status.label}</div>
+          <div class="text-xs text-gray-500 mt-0.5">${categoryData[cat].length}件</div>
+        `;
+        categoryDiv.appendChild(card);
+      });
+    }
+
+    // 分析タブ切り替え
+    function setAnalysisTab(tab) {
+      currentAnalysisTab = tab;
+      ['category', 'symbol', 'broker', 'tradeType'].forEach(t => {
+        const btn = document.getElementById(`tab-${t}`);
+        if (t === tab) {
+          btn.className = 'px-6 py-3 bg-gradient-to-r from-yellow-500 to-red-500 text-white rounded-xl shadow-lg font-bold';
+        } else {
+          btn.className = 'px-6 py-3 bg-slate-800 border-2 border-slate-700 rounded-xl hover:bg-slate-700 font-bold';
+        }
+      });
+      renderAnalysis();
+    }
+
+    // 📊 原因分析レンダリング
+    function renderAnalysis() {
+      const filtered = getFilteredEntries();
+      const data = {};
+      
+      // 全体の損失合計を計算（寄与率計算用）
+      const totalLoss = Math.abs(filtered.filter(e => e.pnlJPY < 0).reduce((sum, e) => sum + e.pnlJPY, 0));
+      
+      // データ集計
+      filtered.forEach(e => {
+        let key;
+        if (currentAnalysisTab === 'category') key = e.category || 'その他';
+        else if (currentAnalysisTab === 'symbol') key = e.symbolCode || 'その他';
+        else if (currentAnalysisTab === 'broker') key = e.brokerAccount || 'その他';
+        else if (currentAnalysisTab === 'tradeType') key = e.tradeType || 'その他';
+        
+        if (!data[key]) {
+          data[key] = { count: 0, totalPnL: 0, wins: 0, cumulative: 0, peak: 0, maxDD: 0, loss: 0 };
+        }
+        data[key].count++;
+        data[key].totalPnL += e.pnlJPY || 0;
+        if (e.pnlJPY > 0) data[key].wins++;
+        if (e.pnlJPY < 0) data[key].loss += Math.abs(e.pnlJPY);
+        
+        // DD計算
+        data[key].cumulative += e.pnlJPY || 0;
+        if (data[key].cumulative > data[key].peak) data[key].peak = data[key].cumulative;
+        const dd = data[key].peak - data[key].cumulative;
+        if (dd > data[key].maxDD) data[key].maxDD = dd;
+      });
+
+      // 期待値昇順ソート（マイナスが上に来る）
+      const sorted = Object.keys(data)
+        .map(key => {
+          const item = data[key];
+          const expectancy = item.count > 0 ? item.totalPnL / item.count : 0;
+          const lossRatio = totalLoss > 0 ? (item.loss / totalLoss) * 100 : 0;
+          return { name: key, expectancy, lossRatio, ...item };
+        })
+        .sort((a, b) => a.expectancy - b.expectancy);
+
+      // 下位20%を計算
+      const bottomThreshold = Math.ceil(sorted.length * 0.2);
+
+      // テーブル生成
+      const tbody = document.getElementById('analysisTableBody');
+      tbody.innerHTML = sorted.map((item, index) => {
+        const { name, count, totalPnL, wins, maxDD, expectancy, lossRatio } = item;
+        const winRate = count > 0 ? (wins / count * 100).toFixed(1) : 0;
+        
+        // 停止候補の判定：期待値がマイナス、または下位20%
+        const isBottom = index < bottomThreshold || expectancy < 0;
+        
+        return `
+          <tr class="${isBottom ? 'bg-red-900 bg-opacity-40 border-2 border-red-600' : 'hover:bg-slate-700'} border-b border-slate-600">
+            <td class="px-4 py-3 font-bold">
+              ${name} 
+              ${isBottom ? '<span class="ml-2 px-2 py-1 bg-red-600 rounded text-xs">❌ 停止候補</span>' : ''}
+            </td>
+            <td class="px-4 py-3 text-right">${count}件</td>
+            <td class="px-4 py-3 text-right ${totalPnL >= 0 ? 'text-green-400' : 'text-red-400'} font-bold">${fmtJPY(totalPnL)}</td>
+            <td class="px-4 py-3 text-right ${expectancy >= 0 ? 'text-green-400' : 'text-red-400'} font-bold">${fmtJPY2(Math.round(expectancy))}</td>
+            <td class="px-4 py-3 text-right">${winRate}%</td>
+            <td class="px-4 py-3 text-right text-red-400">${fmtJPY2(Math.round(-maxDD))}</td>
+            <td class="px-4 py-3 text-right ${lossRatio >= 30 ? 'text-red-400 font-bold' : 'text-gray-400'}">${lossRatio.toFixed(1)}%</td>
+          </tr>
+        `;
+      }).join('');
+
+      // 削減シミュレーション用チェックボックス生成（カテゴリタブのみ）
+      if (currentAnalysisTab === 'category') {
+        renderSimulationCheckboxes(sorted);
+      }
+    }
+
+    // 🎯 削減シミュレーション：チェックボックス生成
+    function renderSimulationCheckboxes(categories) {
+      const checkboxDiv = document.getElementById('simulationCheckboxes');
+      checkboxDiv.innerHTML = categories.map(cat => `
+        <label class="flex items-center gap-2 px-4 py-2 bg-slate-700 rounded-lg cursor-pointer hover:bg-slate-600">
+          <input type="checkbox" value="${cat.name}" onchange="runSimulation()" class="simulation-checkbox w-4 h-4">
+          <span>${cat.name}</span>
+        </label>
+      `).join('');
+    }
+
+    // 🎯 削減シミュレーション実行
+    function runSimulation() {
+      const checkboxes = document.querySelectorAll('.simulation-checkbox:checked');
+      const excludeCategories = Array.from(checkboxes).map(cb => cb.value);
+      
+      if (excludeCategories.length === 0) {
+        document.getElementById('simulationResult').className = 'grid grid-cols-3 gap-4 mt-4 hidden';
+        return;
+      }
+
+      // 除外後のデータを計算
+      const filtered = getFilteredEntries();
+      const remaining = filtered.filter(e => !excludeCategories.includes(e.category || 'その他'));
+      
+      if (remaining.length === 0) {
+        document.getElementById('simulationResult').className = 'grid grid-cols-3 gap-4 mt-4';
+        document.getElementById('simExpectancy').textContent = 'データなし';
+        document.getElementById('simMaxDD').textContent = 'データなし';
+        document.getElementById('simPF').textContent = 'データなし';
+        return;
+      }
+
+      // 期待値
+      const totalPnL = remaining.reduce((sum, e) => sum + (e.pnlJPY || 0), 0);
+      const expectancy = totalPnL / remaining.length;
+      const originalExpectancy = filtered.length > 0 ? filtered.reduce((sum, e) => sum + (e.pnlJPY || 0), 0) / filtered.length : 0;
+
+      // 最大DD
+      let maxDD = 0;
+      let cumulative = 0;
+      let peak = 0;
+      remaining.forEach(e => {
+        cumulative += e.pnlJPY || 0;
+        if (cumulative > peak) peak = cumulative;
+        const dd = peak - cumulative;
+        if (dd > maxDD) maxDD = dd;
+      });
+      let originalMaxDD = 0;
+      let originalCumulative = 0;
+      let originalPeak = 0;
+      filtered.forEach(e => {
+        originalCumulative += e.pnlJPY || 0;
+        if (originalCumulative > originalPeak) originalPeak = originalCumulative;
+        const dd = originalPeak - originalCumulative;
+        if (dd > originalMaxDD) originalMaxDD = dd;
+      });
+
+      // PF
+      const totalWins = remaining.filter(e => e.pnlJPY > 0).reduce((sum, e) => sum + e.pnlJPY, 0);
+      const totalLosses = Math.abs(remaining.filter(e => e.pnlJPY < 0).reduce((sum, e) => sum + e.pnlJPY, 0));
+      const pf = totalLosses > 0 ? totalWins / totalLosses : 0;
+      const originalTotalWins = filtered.filter(e => e.pnlJPY > 0).reduce((sum, e) => sum + e.pnlJPY, 0);
+      const originalTotalLosses = Math.abs(filtered.filter(e => e.pnlJPY < 0).reduce((sum, e) => sum + e.pnlJPY, 0));
+      const originalPF = originalTotalLosses > 0 ? originalTotalWins / originalTotalLosses : 0;
+
+      // 表示
+      document.getElementById('simulationResult').className = 'grid grid-cols-3 gap-4 mt-4';
+      document.getElementById('simExpectancy').textContent = `${fmtJPY2(Math.round(expectancy))} (${expectancy > originalExpectancy ? '+' : ''}${fmtJPY2(Math.round(expectancy - originalExpectancy))})`;
+      document.getElementById('simExpectancy').className = `text-2xl font-bold ${expectancy > originalExpectancy ? 'text-green-400' : 'text-red-400'}`;
+      document.getElementById('simMaxDD').textContent = `${fmtJPY2(Math.round(-maxDD))} (${-maxDD > -originalMaxDD ? '+' : ''}${fmtJPY2(Math.round(-maxDD - (-originalMaxDD)))})`;
+      document.getElementById('simMaxDD').className = `text-2xl font-bold ${maxDD < originalMaxDD ? 'text-green-400' : 'text-red-400'}`;
+      document.getElementById('simPF').textContent = `${pf.toFixed(2)} (${pf > originalPF ? '+' : ''}${(pf - originalPF).toFixed(2)})`;
+      document.getElementById('simPF').className = `text-2xl font-bold ${pf > originalPF ? 'text-green-400' : 'text-red-400'}`;
+    }
+
+    // 📈 グラフレンダリング
+    function renderCharts() {
+      renderMonthlyChart();
+      renderCumulativeChart();
+      renderDrawdownChart();
+    }
+
+    // 月次推移グラフ
+    function renderMonthlyChart() {
+      const filtered = getFilteredEntries();
+      if (filtered.length === 0) return;
+      
+      const monthlyData = {};
+      filtered.forEach(e => {
+        const month = e.date.substring(0, 7);
+        if (!monthlyData[month]) monthlyData[month] = 0;
+        monthlyData[month] += e.pnlJPY || 0;
+      });
+
+      const labels = Object.keys(monthlyData).sort();
+      const data = labels.map(m => monthlyData[m]);
+
+      const ctx = document.getElementById('monthlyChart').getContext('2d');
+      if (window.monthlyChartInstance) window.monthlyChartInstance.destroy();
+      window.monthlyChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: '月次損益',
+            data: data,
+            backgroundColor: data.map(v => v >= 0 ? 'rgba(34, 197, 94, 0.8)' : 'rgba(239, 68, 68, 0.8)')
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { 
+                color: '#fff',
+                callback: function(value) {
+                  return '¥' + Math.round(value).toLocaleString('ja-JP');
+                }
+              }
+            },
+            x: { ticks: { color: '#fff' } }
+          },
+          plugins: {
+            legend: { labels: { color: '#fff' } },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return '月次損益: ¥' + Math.round(context.parsed.y).toLocaleString('ja-JP');
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // 累積損益グラフ（Peak/Trough追加版）
+    function renderCumulativeChart() {
+      const filtered = getFilteredEntries();
+      if (filtered.length === 0) return;
+      
+      // 日付順に並び替え（古い順）
+      const sorted = [...filtered].sort((a, b) => a.date.localeCompare(b.date));
+      
+      let cumulative = 0;
+      let peak = 0;
+      let peakIndex = -1;
+      let troughValue = 0;
+      let troughIndex = -1;
+      const labels = [];
+      const data = [];
+      const peakData = [];
+      const troughData = [];
+      
+      sorted.forEach((e, i) => {
+        cumulative += e.pnlJPY || 0;
+        labels.push(e.date);
+        data.push(cumulative);
+        
+        // Peak検出
+        if (cumulative > peak) {
+          peak = cumulative;
+          peakIndex = i;
+        }
+        
+        // Trough検出（Peakから最も下落した点）
+        const currentDD = peak - cumulative;
+        if (peakIndex >= 0 && currentDD > (peak - troughValue)) {
+          troughValue = cumulative;
+          troughIndex = i;
+        }
+        
+        // Peak/Troughデータ生成
+        peakData.push(i === peakIndex ? cumulative : null);
+        troughData.push(i === troughIndex ? cumulative : null);
+      });
+
+      const ctx = document.getElementById('cumulativeChart').getContext('2d');
+      if (window.cumulativeChartInstance) window.cumulativeChartInstance.destroy();
+      window.cumulativeChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: '累積損益',
+              data: data,
+              borderColor: 'rgba(59, 130, 246, 1)',
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              fill: true,
+              tension: 0.1,
+              pointRadius: 0
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          scales: {
+            y: { 
+              beginAtZero: true,
+              ticks: { 
+                color: '#fff',
+                callback: function(value) {
+                  return '¥' + Math.round(value).toLocaleString('ja-JP');
+                }
+              }
+            },
+            x: { 
+              ticks: { 
+                color: '#fff',
+                maxTicksLimit: 10
+              }
+            }
+          },
+          plugins: {
+            legend: { labels: { color: '#fff' } },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return context.dataset.label + ': ¥' + Math.round(context.parsed.y).toLocaleString('ja-JP');
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+    
+    // 📉 ドローダウン推移グラフ（新規関数）
+    function renderDrawdownChart() {
+      const filtered = getFilteredEntries();
+      if (filtered.length === 0) return;
+      
+      // 日付順に並び替え（古い順）
+      const sorted = [...filtered].sort((a, b) => a.date.localeCompare(b.date));
+      
+      let cumulative = 0;
+      let peak = 0;
+      const labels = [];
+      const ddData = [];
+      
+      sorted.forEach(e => {
+        cumulative += e.pnlJPY || 0;
+        if (cumulative > peak) peak = cumulative;
+        const dd = peak - cumulative; // DD（常に0以上）
+        labels.push(e.date);
+        ddData.push(-dd); // マイナス表示（下に伸びる）
+      });
+      
+      const ctx = document.getElementById('drawdownChart').getContext('2d');
+      if (window.drawdownChartInstance) window.drawdownChartInstance.destroy();
+      window.drawdownChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'ドローダウン',
+            data: ddData,
+            borderColor: 'rgba(239, 68, 68, 1)',
+            backgroundColor: 'rgba(239, 68, 68, 0.2)',
+            fill: true,
+            tension: 0.1,
+            pointRadius: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          scales: {
+            y: { 
+              max: 0,
+              ticks: { 
+                color: '#fff',
+                callback: function(value) {
+                  return '¥' + Math.round(value).toLocaleString('ja-JP');
+                }
+              }
+            },
+            x: { 
+              ticks: { 
+                color: '#fff',
+                maxTicksLimit: 10
+              }
+            }
+          },
+          plugins: {
+            legend: { labels: { color: '#fff' } },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return 'DD: ¥' + Math.round(context.parsed.y).toLocaleString('ja-JP');
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // フォーマット関数
+    function fmtJPY(n) {
+      return `${n >= 0 ? '+' : ''}${Math.round(n).toLocaleString('ja-JP')}円`;
+    }
+
+    function fmtJPY2(n) {
+      return `¥${Math.round(n).toLocaleString('ja-JP')}`;
+    }
+
+    function fmtUSDT(n) {
+      const sign = n >= 0 ? '+' : '';
+      return `${sign}${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`;
+    }
+
+    // 初期化実行
+    init();
+  </script>
+</body>
+</html>

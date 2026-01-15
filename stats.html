@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📊 統計ダッシュボード</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 min-h-screen">
+  <div class="container mx-auto p-4 sm:p-8 max-w-7xl">
+    <!-- ヘッダー -->
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h1 class="text-4xl font-bold bg-gradient-to-r from-green-600 via-blue-600 to-purple-600 bg-clip-text text-transparent">📊 統計ダッシュボード</h1>
+        <p class="text-gray-600 mt-2">トレードパフォーマンスの統計分析</p>
+      </div>
+      <div class="flex gap-2">
+        <a href="index.html" class="px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl hover:from-purple-600 hover:to-purple-700 transition shadow-lg">🎯 トレード記録</a>
+        <a href="accounts.html" class="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition shadow-lg">💼 口座管理</a>
+        <a href="technical.html" class="px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl hover:from-orange-600 hover:to-orange-700 transition shadow-lg">📈 テクニカル</a>
+      </div>
+    </div>
+
+    <!-- 期間選択 -->
+    <div class="flex gap-4 mb-8">
+      <button onclick="setPeriod('month')" id="btn-month" class="px-6 py-3 bg-white border-2 border-green-300 rounded-xl hover:bg-green-50 font-bold transition">今月</button>
+      <button onclick="setPeriod('year')" id="btn-year" class="px-6 py-3 bg-white border-2 border-green-300 rounded-xl hover:bg-green-50 font-bold transition">今年</button>
+      <button onclick="setPeriod('all')" id="btn-all" class="px-6 py-3 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-xl shadow-lg font-bold">全期間</button>
+    </div>
+
+    <!-- サマリーカード -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div class="bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-2xl shadow-xl text-white">
+        <p class="text-sm opacity-90 mb-1">総損益</p>
+        <p id="totalPnL" class="text-4xl font-bold">¥0</p>
+      </div>
+      <div class="bg-gradient-to-br from-green-500 to-green-600 p-6 rounded-2xl shadow-xl text-white">
+        <p class="text-sm opacity-90 mb-1">勝率</p>
+        <p id="winRate" class="text-4xl font-bold">0%</p>
+      </div>
+      <div class="bg-gradient-to-br from-purple-500 to-purple-600 p-6 rounded-2xl shadow-xl text-white">
+        <p class="text-sm opacity-90 mb-1">平均損益</p>
+        <p id="avgPnL" class="text-4xl font-bold">¥0</p>
+      </div>
+      <div class="bg-gradient-to-br from-orange-500 to-orange-600 p-6 rounded-2xl shadow-xl text-white">
+        <p class="text-sm opacity-90 mb-1">最大DD</p>
+        <p id="maxDD" class="text-4xl font-bold">¥0</p>
+      </div>
+    </div>
+
+    <!-- 月次推移 -->
+    <div class="bg-white rounded-2xl shadow-xl border-2 border-green-200 p-6 mb-8">
+      <h2 class="text-2xl font-bold text-gray-900 mb-4">月次推移</h2>
+      <canvas id="monthlyChart"></canvas>
+    </div>
+
+    <!-- カテゴリ別・証券会社別 -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div class="bg-white rounded-2xl shadow-xl border-2 border-green-200 p-6">
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">カテゴリ別損益</h2>
+        <canvas id="categoryChart"></canvas>
+      </div>
+      <div class="bg-white rounded-2xl shadow-xl border-2 border-green-200 p-6">
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">証券会社別損益</h2>
+        <canvas id="brokerChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'my-finance:pnl_entries:v3';
+    let entries = [];
+    let currentPeriod = 'all';
+
+    function init() {
+      loadEntries();
+      renderStats();
+    }
+
+    function loadEntries() {
+      const data = localStorage.getItem(STORAGE_KEY);
+      if (data) {
+        entries = JSON.parse(data);
+      }
+    }
+
+    function setPeriod(period) {
+      currentPeriod = period;
+      ['month', 'year', 'all'].forEach(p => {
+        const btn = document.getElementById(`btn-${p}`);
+        if (p === period) {
+          btn.className = 'px-6 py-3 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-xl shadow-lg font-bold transition';
+        } else {
+          btn.className = 'px-6 py-3 bg-white border-2 border-green-300 rounded-xl hover:bg-green-50 font-bold transition';
+        }
+      });
+      renderStats();
+    }
+
+    function getFilteredEntries() {
+      const now = new Date();
+      if (currentPeriod === 'month') {
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+        return entries.filter(e => e.date >= startOfMonth);
+      } else if (currentPeriod === 'year') {
+        const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+        return entries.filter(e => e.date >= startOfYear);
+      }
+      return entries;
+    }
+
+    function renderStats() {
+      const filtered = getFilteredEntries();
+      
+      // サマリー
+      const totalPnL = filtered.reduce((sum, e) => sum + (e.pnlJPY || 0), 0);
+      const wins = filtered.filter(e => e.pnlJPY > 0).length;
+      const winRate = filtered.length > 0 ? Math.round((wins / filtered.length) * 100) : 0;
+      const avgPnL = filtered.length > 0 ? Math.round(totalPnL / filtered.length) : 0;
+      
+      // 最大DD計算
+      let maxDD = 0;
+      let cumulative = 0;
+      let peak = 0;
+      filtered.forEach(e => {
+        cumulative += e.pnlJPY || 0;
+        if (cumulative > peak) peak = cumulative;
+        const dd = peak - cumulative;
+        if (dd > maxDD) maxDD = dd;
+      });
+
+      document.getElementById('totalPnL').textContent = fmtJPY2(totalPnL);
+      document.getElementById('winRate').textContent = `${winRate}%`;
+      document.getElementById('avgPnL').textContent = fmtJPY2(avgPnL);
+      document.getElementById('maxDD').textContent = fmtJPY2(-maxDD);
+
+      renderMonthlyChart(filtered);
+      renderCategoryChart(filtered);
+      renderBrokerChart(filtered);
+    }
+
+    function renderMonthlyChart(filtered) {
+      const monthlyData = {};
+      filtered.forEach(e => {
+        const month = e.date.substring(0, 7);
+        if (!monthlyData[month]) monthlyData[month] = 0;
+        monthlyData[month] += e.pnlJPY || 0;
+      });
+
+      const labels = Object.keys(monthlyData).sort();
+      const data = labels.map(m => monthlyData[m]);
+
+      const ctx = document.getElementById('monthlyChart').getContext('2d');
+      if (window.monthlyChartInstance) window.monthlyChartInstance.destroy();
+      window.monthlyChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: '月次損益',
+            data: data,
+            backgroundColor: data.map(v => v >= 0 ? 'rgba(34, 197, 94, 0.8)' : 'rgba(239, 68, 68, 0.8)')
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  return '¥' + value.toLocaleString('ja-JP');
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function renderCategoryChart(filtered) {
+      const categoryData = {};
+      filtered.forEach(e => {
+        const cat = e.category || 'その他';
+        if (!categoryData[cat]) categoryData[cat] = 0;
+        categoryData[cat] += e.pnlJPY || 0;
+      });
+
+      const labels = Object.keys(categoryData);
+      const data = labels.map(c => categoryData[c]);
+
+      const ctx = document.getElementById('categoryChart').getContext('2d');
+      if (window.categoryChartInstance) window.categoryChartInstance.destroy();
+      window.categoryChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: data,
+            backgroundColor: [
+              'rgba(59, 130, 246, 0.8)',
+              'rgba(168, 85, 247, 0.8)',
+              'rgba(236, 72, 153, 0.8)',
+              'rgba(34, 197, 94, 0.8)',
+              'rgba(251, 146, 60, 0.8)'
+            ]
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: 'bottom' }
+          }
+        }
+      });
+    }
+
+    function renderBrokerChart(filtered) {
+      const brokerData = {};
+      filtered.forEach(e => {
+        const broker = e.brokerAccount || 'その他';
+        if (!brokerData[broker]) brokerData[broker] = 0;
+        brokerData[broker] += e.pnlJPY || 0;
+      });
+
+      const labels = Object.keys(brokerData);
+      const data = labels.map(b => brokerData[b]);
+
+      const ctx = document.getElementById('brokerChart').getContext('2d');
+      if (window.brokerChartInstance) window.brokerChartInstance.destroy();
+      window.brokerChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: '証券会社別損益',
+            data: data,
+            backgroundColor: data.map(v => v >= 0 ? 'rgba(34, 197, 94, 0.8)' : 'rgba(239, 68, 68, 0.8)')
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  return '¥' + value.toLocaleString('ja-JP');
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function fmtJPY2(n) {
+      return `¥${n.toLocaleString('ja-JP')}`;
+    }
+
+    init();
+  </script>
+</body>
+</html>
