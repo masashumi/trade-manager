@@ -270,12 +270,29 @@
       </div>
     </div>
     
-    <!-- 📉 ドローダウン推移グラフ（独立） -->
-    <div class="mb-8">
+    <!-- 📉 ドローダウン推移グラフ -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
       <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border-2 border-red-500">
-        <h3 class="text-2xl font-bold mb-2 text-red-400">📉 ドローダウン推移（DD拡大中？底打ち？回復中？）</h3>
-        <p class="text-sm text-gray-400 mb-4">累積損益の最高値からの下落幅を時系列で表示。0に近いほど健全。拡大中なら新規禁止、横ばい〜回復なら継続検討。</p>
+        <h3 class="text-2xl font-bold mb-2 text-red-400">📉 ドローダウン推移</h3>
+        <p class="text-sm text-gray-400 mb-4">累積損益の最高値からの下落幅を時系列で表示。0に近いほど健全。</p>
         <canvas id="drawdownChart"></canvas>
+      </div>
+      <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border-2 border-slate-700">
+        <h3 class="text-2xl font-bold mb-2 text-yellow-400">💡 DD判定ガイド</h3>
+        <div class="space-y-3 mt-4">
+          <div class="p-3 bg-red-900 bg-opacity-30 rounded-xl border-2 border-red-500">
+            <p class="font-bold text-red-400">🔴 DD拡大中</p>
+            <p class="text-sm text-gray-300">下に伸び続けている → 新規トレード禁止</p>
+          </div>
+          <div class="p-3 bg-yellow-900 bg-opacity-30 rounded-xl border-2 border-yellow-500">
+            <p class="font-bold text-yellow-400">🟡 DD横ばい（底打ち？）</p>
+            <p class="text-sm text-gray-300">下げ止まり → 様子見、慎重に継続検討</p>
+          </div>
+          <div class="p-3 bg-green-900 bg-opacity-30 rounded-xl border-2 border-green-500">
+            <p class="font-bold text-green-400">🟢 DD回復中</p>
+            <p class="text-sm text-gray-300">0に向かって上昇中 → 継続OK</p>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1025,8 +1042,12 @@
                 }
               }
             },
-            x: { ticks: { color: '#fff' } }
+            x: { 
+              ticks: { color: '#fff' }
+            }
           },
+          barPercentage: 0.7,
+          categoryPercentage: 0.8,
           plugins: {
             legend: { labels: { color: '#fff' } },
             tooltip: {
