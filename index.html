@@ -339,9 +339,9 @@
                     <option value="日本株">
                     <option value="日本指数">
                     <option value="FX">
+                    <option value="仮想通貨">
                     <option value="コモディティ">
                     <option value="債券">
-                    <option value="投資信託">
                     <option value="オーバーナイト金利">
                     <option value="その他手数料">
                   </datalist>
@@ -898,16 +898,16 @@
 
     // カテゴリプルダウンを更新
     function populateCategoryOptions() {
-      // 固定のカテゴリリスト（CFD削除）
+      // 固定のカテゴリリスト
       const fixedCategories = [
         '米国株',
         '米国指数',
         '日本株',
         '日本指数',
         'FX',
+        '仮想通貨',
         'コモディティ',
         '債券',
-        '投資信託',
         'オーバーナイト金利',
         'その他手数料'
       ];
