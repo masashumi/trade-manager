@@ -95,10 +95,11 @@ const server = http.createServer((req, res) => {
         
         backups.push(newBackup);
         
-        // 最大50件に制限
-        if (backups.length > 50) {
-          backups.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-          backups.splice(50);
+        // 最新5件のみ保持（古いものを自動削除）
+        backups.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        if (backups.length > 5) {
+          const removed = backups.splice(5);
+          console.log(`🗑️ 古いバックアップを${removed.length}件削除しました`);
         }
         
         fs.writeFileSync(BACKUP_FILE, JSON.stringify(backups, null, 2), 'utf8');

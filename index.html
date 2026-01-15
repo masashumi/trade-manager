@@ -1370,7 +1370,7 @@
     async function showBackupListForRestore() {
       closeRestoreModal();
       try {
-        const response = await fetch('tables/backups?limit=50&sort=-created_at');
+        const response = await fetch('tables/backups?limit=5&sort=-created_at');
         if (!response.ok) throw new Error('バックアップ一覧取得失敗');
         
         const result = await response.json();

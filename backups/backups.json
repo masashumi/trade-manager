@@ -18,5 +18,15 @@
     "account_count": 0,
     "created_at": "2026-01-15T14:14:08.971Z",
     "updated_at": "2026-01-15T14:14:08.971Z"
+  },
+  {
+    "id": "1768486751326",
+    "backup_name": "backup-2026-01-15-23:19",
+    "backup_data": "{\"version\":\"5.1-tableapi\",\"exportDate\":\"2026-01-15T14:19:11.200Z\",\"entries\":[],\"accounts\":{}}",
+    "backup_type": "manual",
+    "entry_count": 0,
+    "account_count": 0,
+    "created_at": "2026-01-15T14:19:11.326Z",
+    "updated_at": "2026-01-15T14:19:11.326Z"
   }
 ]
